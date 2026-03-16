@@ -177,12 +177,10 @@ The original PR/branch history is still valid historical context, but #039 shoul
 
 ## Issue #052: Escape control characters in hashlined tool output — CLOSED ✅
 **Date**: 2026-03-16
-
 ### Fixed
 - Escaped raw ASCII control characters in `read`, `grep`, and `sg` hashlined output so copied tool output no longer breaks downstream JSON tool calls (#052)
 - Preserved anchor stability by keeping hash computation on raw line text and applying escaping only in display formatting (#052)
 - Escaped related control-character previews in hashline mismatch diagnostics and edit no-op diagnostics (#052)
-
 ### Tests
 - Added regression coverage for `read`/`grep`, `sg`, `hashLines()`, `hashLine()`, mismatch diagnostics, and edit diagnostics
 - Verified with `npm test` → 71 passing files / 388 passing tests
