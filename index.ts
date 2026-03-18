@@ -7,6 +7,18 @@ import { registerSgTool } from "./src/sg.js";
 import { filterBashOutput } from "./src/rtk/bash-filter.js";
 import { stripAnsi } from "./src/rtk/ansi.js";
 
+export {
+  HASHLINE_TOOL_PTC_POLICY,
+  getHashlineToolPtcPolicy,
+} from "./src/ptc-tool-policy.js";
+export type {
+  HashlineToolDefaultExposure,
+  HashlineToolMutability,
+  HashlineToolName,
+  HashlineToolPtcPolicy,
+  HashlineToolPtcPolicyEntry,
+} from "./src/ptc-tool-policy.js";
+
 // Set to false to disable semantic compression (test summaries, git, build, etc.).
 // ANSI stripping always runs regardless.
 const BASH_FILTER_ENABLED = true;

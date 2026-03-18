@@ -198,3 +198,12 @@ The original PR/branch history is still valid historical context, but #039 shoul
 ## [Unreleased]
 ### Changed
 - Refactored `read`, `grep`, `sg`, and `edit` so chat text and `details.ptcValue` are projected from shared internal output builders while preserving existing hashlines, warning behavior, truncation behavior, and raw-content anchor semantics (#055)
+## Issue #054: Add PTC tool policy contract metadata — CLOSED ✅
+**Date**: 2026-03-17
+### Added
+- Added `HASHLINE_TOOL_PTC_POLICY` and `getHashlineToolPtcPolicy()` as a canonical, machine-readable PTC policy contract for `read`, `grep`, `sg`, and `edit` (#054)
+- Re-exported the PTC policy contract and related types from the package root so downstream consumers can import it programmatically without prose parsing (#054)
+- Documented recommended PTC exposure tiers in `README.md`, including optional downstream consumption by `pi-prompt-assembler` without introducing a runtime dependency (#054)
+### Tests
+- Added dedicated regression coverage for the canonical contract, package-root export, and README policy documentation
+- Verified with `npm test` and `npm run typecheck` → 79 passing files / 402 passing tests

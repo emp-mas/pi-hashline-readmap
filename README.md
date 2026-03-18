@@ -252,6 +252,21 @@ Current structured shapes:
   - `noopEdits: Array<{ editIndex, loc, currentContent }>`
 
 Hashes and anchors remain tied to raw file content semantics. `display` stays escaped for safe rendering, while `raw` preserves the underlying file text for programmatic consumers.
+
+### PTC tool policy contract
+
+In addition to `details.ptcValue`, the package exports a machine-readable policy contract at `HASHLINE_TOOL_PTC_POLICY` and `getHashlineToolPtcPolicy()`.
+
+```ts
+import { HASHLINE_TOOL_PTC_POLICY } from "pi-hashline-readmap";
+```
+
+Recommended exposure tiers:
+- `read` and `grep` are safe-by-default, read-only helpers.
+- `sg` is opt-in, read-only.
+- `edit` is not safe-by-default and is mutating/write-capable.
+
+`pi-prompt-assembler` may optionally consume this contract, but `pi-hashline-readmap` does not require `pi-prompt-assembler` to be installed in order to function.
 ## Why this is especially good for agents
 
 This extension is optimized around the actual failure modes of coding agents:
