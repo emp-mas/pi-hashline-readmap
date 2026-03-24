@@ -8,6 +8,8 @@ import { looksLikeBinary } from "./binary-detect";
 import { ensureHashInit, formatHashlineDisplay } from "./hashline";
 import { buildPtcLine } from "./ptc-value.js";
 import { buildGrepOutput } from "./grep-output.js";
+import { getOrGenerateMap } from "./map-cache.js";
+import { scopeGrepGroupsToSymbols } from "./grep-symbol-scope.js";
 import { resolveToCwd } from "./path-utils";
 import { throwIfAborted } from "./runtime";
 import { Text } from "@mariozechner/pi-tui";
@@ -25,6 +27,11 @@ const grepSchema = Type.Object({
 	context: Type.Optional(Type.Number({ description: "Number of lines to show before and after each match (default: 0)" })),
 	limit: Type.Optional(Type.Number({ description: "Maximum number of matches to return (default: 100)" })),
 	summary: Type.Optional(Type.Boolean({ description: "Return per-file match counts only (no hashline anchors)" })),
+	scope: Type.Optional(
+		Type.Literal("symbol", {
+			description: 'Scope matches to enclosing symbol blocks. Only "symbol" is defined, and it is ignored when summary: true.',
+		}),
+	),
 });
 
 interface GrepParams {
@@ -36,6 +43,7 @@ interface GrepParams {
 	context?: number;
 	limit?: number;
 	summary?: boolean;
+	scope?: "symbol";
 }
 
 const MATCH_LINE_RE = /^(.*):(\d+): (.*)$/;
@@ -459,8 +467,7 @@ export function registerGrepTool(pi: ExtensionAPI) {
 					files: truncatedIR.files.map((file) => ({ ...file, path: toAbsolutePath(file.path) })),
 				}
 				: truncatedIR;
-const ptcRecords = collectPtcRecordsFromIR(outputIR, recordByRenderedLine);
-const groups = outputIR.files.map((file) => ({
+let renderedGroups = outputIR.files.map((file) => ({
 	displayPath: file.path,
 	absolutePath: summary ? file.path : toAbsolutePath(file.path),
 	matchCount: file.matchCount,
@@ -472,7 +479,6 @@ const groups = outputIR.files.map((file) => ({
 		if (!record) {
 			throw new Error(`Missing grep record for rendered line: ${line.raw}`);
 		}
-
 		return {
 			kind: record.kind,
 			line: {
@@ -485,12 +491,55 @@ const groups = outputIR.files.map((file) => ({
 		};
 	}),
 }));
+
+let ptcRecords = collectPtcRecordsFromIR(outputIR, recordByRenderedLine);
+let scopeWarnings: import("./grep-output.js").GrepScopeWarning[] = [];
+
+if (p.scope === "symbol" && !summary) {
+	const fileLinesByPath = new Map<string, string[]>();
+	const fileMapsByPath = new Map<string, Awaited<ReturnType<typeof getOrGenerateMap>>>();
+
+	for (const group of renderedGroups) {
+		const lines = await getFileLines(group.absolutePath);
+		if (lines) fileLinesByPath.set(group.absolutePath, lines);
+		fileMapsByPath.set(group.absolutePath, await getOrGenerateMap(group.absolutePath));
+	}
+
+	const scoped = scopeGrepGroupsToSymbols({
+		groups: renderedGroups,
+		fileLinesByPath,
+		fileMapsByPath,
+		contextLines: p.context ?? 0,
+	});
+
+	renderedGroups = scoped.groups;
+	scopeWarnings = scoped.warnings;
+	ptcRecords = renderedGroups.flatMap((group) =>
+		group.entries.flatMap((entry) =>
+			entry.kind === "separator"
+				? []
+				: [
+					{
+						path: group.absolutePath,
+						kind: entry.kind,
+						line: entry.line.line,
+						hash: entry.line.hash,
+						anchor: entry.line.anchor,
+						raw: entry.line.raw,
+						display: entry.line.display,
+					},
+				],
+		),
+	);
+}
 	const builtOutput = buildGrepOutput({
 	summary: !!summary,
 	totalMatches: grepIR.totalMatches,
-	groups,
+	groups: renderedGroups,
 	limit: effectiveLimit,
 	records: ptcRecords,
+	scopeMode: p.scope === "symbol" && !summary ? "symbol" : undefined,
+	scopeWarnings,
 });
 
 return {

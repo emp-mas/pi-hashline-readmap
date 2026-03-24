@@ -19,6 +19,7 @@ import { getOrGenerateMap } from "./map-cache";
 import { formatFileMapWithBudget } from "./readmap/formatter.js";
 import { findSymbol, type SymbolMatch } from "./readmap/symbol-lookup.js";
 import { buildReadOutput } from "./read-output.js";
+import { buildLocalBundle } from "./read-local-bundle.js";
 import { Text } from "@mariozechner/pi-tui";
 import { formatReadCallText, formatReadResultText } from "./read-render-helpers.js";
 
@@ -33,6 +34,7 @@ interface ReadParams {
 	limit?: number;
 	symbol?: string;
 	map?: boolean;
+	bundle?: "local";
 }
 
 export function registerReadTool(pi: ExtensionAPI) {
@@ -55,6 +57,11 @@ export function registerReadTool(pi: ExtensionAPI) {
 			limit: Type.Optional(Type.Number({ description: "Maximum number of lines to read" })),
 			symbol: Type.Optional(Type.String({ description: "Symbol to read (e.g., functionName or ClassName.methodName)" })),
 			map: Type.Optional(Type.Boolean({ description: "Append structural map to output (cannot combine with symbol)" })),
+			bundle: Type.Optional(
+				Type.Literal("local", {
+					description: 'Include the requested symbol plus direct same-file local support. Only "local" is defined.',
+				}),
+			),
 		}),
 		ptc,
 		async execute(_toolCallId, params, signal, _onUpdate, ctx) {
@@ -68,6 +75,22 @@ export function registerReadTool(pi: ExtensionAPI) {
 			if (p.symbol && (p.offset !== undefined || p.limit !== undefined)) {
 				return {
 					content: [{ type: "text", text: "Cannot combine symbol with offset/limit. Use one or the other." }],
+					isError: true,
+					details: {},
+				};
+			}
+
+			if (p.bundle && !p.symbol) {
+				return {
+					content: [{ type: "text", text: 'Cannot use bundle without symbol. Use read({ path, symbol, bundle: "local" }).' }],
+					isError: true,
+					details: {},
+				};
+			}
+
+			if (p.bundle && p.map) {
+				return {
+					content: [{ type: "text", text: "Cannot combine bundle with map. Use one or the other." }],
 					isError: true,
 					details: {},
 				};
@@ -140,18 +163,35 @@ export function registerReadTool(pi: ExtensionAPI) {
 				};
 			}
 			let symbolMatch: SymbolMatch | undefined;
+			let symbolFileMap: Awaited<ReturnType<typeof getOrGenerateMap>> | null = null;
 			let symbolWarning: string | undefined;
+			let bundleMetadata:
+				| {
+						mode: "local";
+						applied: boolean;
+						localSupport: Array<{
+							symbol: {
+								query: string;
+								name: string;
+								kind: string;
+								parentName?: string;
+								startLine: number;
+								endLine: number;
+							};
+							lines: string[];
+						}>;
+						warnings: PtcWarning[];
+				  }
+				| null = null;
 			if (p.symbol) {
-				const fileMap = await getOrGenerateMap(absolutePath);
-				if (!fileMap) {
+				symbolFileMap = await getOrGenerateMap(absolutePath);
+				if (!symbolFileMap) {
 					const extLabel = ext || "unknown";
 					symbolWarning = `[Warning: symbol lookup not available for .${extLabel} files — showing full file]\n\n`;
 				} else {
-					const lookup = findSymbol(fileMap, p.symbol);
+					const lookup = findSymbol(symbolFileMap, p.symbol);
 					if (lookup.type === "ambiguous") {
-						const lines = lookup.candidates.map(
-							(c) => `- ${c.name} (${c.kind}) — lines ${c.startLine}-${c.endLine}`,
-						);
+						const lines = lookup.candidates.map((c) => `- ${c.name} (${c.kind}) — lines ${c.startLine}-${c.endLine}`);
 						const hints = lookup.candidates.map((c) => `${p.symbol}@${c.startLine}`).join(" or ");
 						return {
 							content: [
@@ -170,7 +210,7 @@ export function registerReadTool(pi: ExtensionAPI) {
 						};
 					}
 					if (lookup.type === "not-found") {
-						const available = fileMap.symbols
+						const available = symbolFileMap.symbols
 							.slice(0, 20)
 							.map((s) => s.name)
 							.join(", ");
@@ -180,6 +220,62 @@ export function registerReadTool(pi: ExtensionAPI) {
 						startLine = Math.max(1, lookup.symbol.startLine);
 						endIdx = Math.min(total, lookup.symbol.endLine);
 						symbolMatch = lookup.symbol;
+					}
+				}
+			}
+
+			if (p.bundle === "local") {
+				if (!symbolFileMap) {
+					const extLabel = ext || "unknown";
+					const warning = buildPtcWarning(
+						"bundle-unmappable",
+						`[Warning: local bundle unavailable because symbol mapping is not available for .${extLabel} files — showing plain symbol read]`,
+					);
+					structuredWarnings.push(warning);
+					bundleMetadata = {
+						mode: "local",
+						applied: false,
+						localSupport: [],
+						warnings: [warning],
+					};
+				} else if (!symbolMatch) {
+					bundleMetadata = {
+						mode: "local",
+						applied: false,
+						localSupport: [],
+						warnings: [],
+					};
+				} else {
+					const bundle = buildLocalBundle(symbolFileMap, symbolMatch, allLines);
+					if (!bundle) {
+						const warning = buildPtcWarning(
+							"bundle-context-unavailable",
+							`[Warning: local bundle context could not be determined for symbol '${symbolMatch.name}' — showing plain symbol read]`,
+						);
+						structuredWarnings.push(warning);
+						bundleMetadata = {
+							mode: "local",
+							applied: false,
+							localSupport: [],
+							warnings: [warning],
+						};
+					} else {
+						bundleMetadata = {
+							mode: "local",
+							applied: true,
+							localSupport: bundle.support.map((item) => ({
+								symbol: {
+									query: item.symbol.name,
+									name: item.symbol.name,
+									kind: item.symbol.kind,
+									parentName: item.symbol.parentName,
+									startLine: item.symbol.startLine,
+									endLine: item.symbol.endLine,
+								},
+								lines: item.lines,
+							})),
+							warnings: [],
+						};
 					}
 				}
 			}
@@ -276,6 +372,7 @@ const readOutput = buildReadOutput({
 		appended: appendedMap,
 		text: mapText,
 	},
+	...(bundleMetadata ? { bundle: bundleMetadata } : {}),
 });
 
 return {

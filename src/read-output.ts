@@ -32,6 +32,18 @@ export interface ReadContinuationMetadata {
   nextOffset: number;
 }
 
+export interface ReadBundleSupportItem {
+  symbol: ReadSymbolMetadata;
+  lines: string[];
+}
+
+export interface ReadBundleMetadata {
+  mode: "local";
+  applied: boolean;
+  localSupport: ReadBundleSupportItem[];
+  warnings?: PtcWarning[];
+}
+
 export interface ReadOutputInput {
   path: string;
   startLine: number;
@@ -43,6 +55,7 @@ export interface ReadOutputInput {
   continuation?: ReadContinuationMetadata | null;
   symbol?: ReadSymbolMetadata | null;
   map?: ReadMapMetadata;
+  bundle?: ReadBundleMetadata | null;
 }
 
 export interface ReadOutputResult {
@@ -64,6 +77,19 @@ export interface ReadOutputResult {
       appended: boolean;
     };
     lines: PtcLine[];
+    bundle?: {
+      mode: "local";
+      applied: boolean;
+      localSupport: Array<{
+        name: string;
+        kind: string;
+        parentName?: string;
+        startLine: number;
+        endLine: number;
+        lineAnchors: string[];
+      }>;
+      warnings: PtcWarning[];
+    };
   };
 }
 
@@ -84,6 +110,21 @@ export function buildReadOutput(input: ReadOutputInput): ReadOutputResult {
     text += `\n\n[Showing lines ${input.startLine}-${input.endLine} of ${input.totalLines}. Use offset=${input.continuation.nextOffset} to continue.]`;
   }
 
+  if (input.bundle?.applied) {
+    const supportBlocks = input.bundle.localSupport.map((item) => {
+      const supportLines = buildPtcLines(item.symbol.startLine, item.lines);
+      return renderPtcLines(supportLines);
+    });
+
+    text = [
+      "## Requested symbol",
+      text,
+      "",
+      "## Local support",
+      ...supportBlocks,
+    ].join("\n");
+  }
+
   if (input.map?.appended && input.map.text) {
     text += `\n\n${input.map.text}`;
   }
@@ -97,25 +138,46 @@ export function buildReadOutput(input: ReadOutputInput): ReadOutputResult {
     text = `${warnings.map((warning) => warning.message).join("\n\n")}\n\n${text}`;
   }
 
+  const ptcValue: ReadOutputResult["ptcValue"] = {
+    tool: "read",
+    path: input.path,
+    range: {
+      startLine: input.startLine,
+      endLine: input.endLine,
+      totalLines: input.totalLines,
+    },
+    warnings,
+    truncation: input.truncation ?? null,
+    symbol: input.symbol ?? null,
+    map: {
+      requested: input.map?.requested ?? false,
+      appended: input.map?.appended ?? false,
+    },
+    lines,
+  };
+
+  if (input.bundle) {
+    ptcValue.bundle = {
+      mode: input.bundle.mode,
+      applied: input.bundle.applied,
+      localSupport: input.bundle.localSupport.map((item) => {
+        const supportLines = buildPtcLines(item.symbol.startLine, item.lines);
+        return {
+          name: item.symbol.name,
+          kind: item.symbol.kind,
+          parentName: item.symbol.parentName,
+          startLine: item.symbol.startLine,
+          endLine: item.symbol.endLine,
+          lineAnchors: supportLines.map((line) => line.anchor),
+        };
+      }),
+      warnings: input.bundle.warnings ?? [],
+    };
+  }
+
   return {
     text,
     lines,
-    ptcValue: {
-      tool: "read",
-      path: input.path,
-      range: {
-        startLine: input.startLine,
-        endLine: input.endLine,
-        totalLines: input.totalLines,
-      },
-      warnings,
-      truncation: input.truncation ?? null,
-      symbol: input.symbol ?? null,
-      map: {
-        requested: input.map?.requested ?? false,
-        appended: input.map?.appended ?? false,
-      },
-      lines,
-    },
+    ptcValue,
   };
 }
