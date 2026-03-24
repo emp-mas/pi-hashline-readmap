@@ -8,6 +8,8 @@ import { applyHashlineEdits, computeLineHash, ensureHashInit, parseLineRef, type
 import { resolveToCwd } from "./path-utils";
 import { throwIfAborted } from "./runtime";
 import { buildEditOutput } from "./edit-output.js";
+import { classifyEdit, isDifftAvailable, runDifftastic } from "./edit-classify.js";
+import type { SemanticSummary } from "./ptc-value.js";
 import { Text } from "@mariozechner/pi-tui";
 import { formatEditCallText, formatEditResultText } from "./edit-render-helpers.js";
 
@@ -242,6 +244,25 @@ export function registerEditTool(pi: ExtensionAPI) {
 			const warnings: string[] = [];
 			if (anchorResult.warnings?.length) warnings.push(...anchorResult.warnings);
 			if (legacyNormalizationWarning) warnings.push(legacyNormalizationWarning);
+			// Semantic classification
+			const internalClassification = classifyEdit(originalNormalized, result);
+			const difftAvailable = await isDifftAvailable();
+			let semanticSummary: SemanticSummary = {
+				classification: internalClassification.classification,
+				difftasticAvailable: difftAvailable,
+			};
+
+			if (difftAvailable) {
+				const ext = path.split(".").pop() ?? "txt";
+				const difftResult = await runDifftastic(originalNormalized, result, ext);
+				if (difftResult) {
+					semanticSummary = {
+						classification: difftResult.classification,
+						difftasticAvailable: true,
+						...(difftResult.movedBlocks > 0 ? { movedBlocks: difftResult.movedBlocks } : {}),
+					};
+				}
+			}
 			const builtOutput = buildEditOutput({
 				path: absolutePath,
 				displayPath: path,
@@ -249,6 +270,7 @@ export function registerEditTool(pi: ExtensionAPI) {
 				firstChangedLine: anchorResult.firstChangedLine ?? diffResult.firstChangedLine,
 				warnings,
 				noopEdits: anchorResult.noopEdits ?? [],
+				semanticSummary,
 			});
 
 			const warn = warnings.length ? `\n\nWarnings:\n${warnings.join("\n")}` : "";
@@ -315,6 +337,7 @@ export function registerEditTool(pi: ExtensionAPI) {
 			} | undefined;
 			const warnings = ptcValue?.warnings ?? [];
 			const noopEdits = ptcValue?.noopEdits ?? [];
+			const semanticClassification = (ptcValue as any)?.semanticSummary?.classification as string | undefined;
 
 			const info = formatEditResultText({
 				isError: isError || !!result.isError,
@@ -322,6 +345,7 @@ export function registerEditTool(pi: ExtensionAPI) {
 				warnings,
 				noopEdits,
 				errorText: textContent,
+				semanticClassification: semanticClassification as any,
 			});
 
 			// Build display text
@@ -348,6 +372,9 @@ export function registerEditTool(pi: ExtensionAPI) {
 				}
 				if (info.warningsBadge) {
 					parts.push(theme.fg("warning", info.warningsBadge));
+				}
+				if (info.semanticBadge) {
+					parts.push(theme.fg("dim", info.semanticBadge));
 				}
 				text = parts.join("  ") || theme.fg("success", "\u2713");
 

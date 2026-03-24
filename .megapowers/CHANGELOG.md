@@ -263,3 +263,33 @@ The original PR/branch history is still valid historical context, but #039 shoul
 ### Tests
 - 28 new unit tests across `tests/read-render-helpers.test.ts` and `tests/grep-render-helpers.test.ts`
 - pi-hashline-readmap: 92 files, 483 tests, 0 failures
+
+## Issue #062: Additive Output Contracts for grep scope="symbol" and read bundle="local" — CLOSED ✅
+**Date**: 2026-03-24
+
+### Added
+- `grep` tool accepts optional `scope: "symbol"` parameter that groups matches by enclosing symbol block with deterministic fallback for unmappable files and orphan matches (#062)
+- `grep` scoped output adds additive `ptcValue.scopes` metadata (mode, groups, warnings) alongside unchanged `ptcValue.records` (#062)
+- `read` tool accepts optional `bundle: "local"` parameter that includes the requested symbol plus directly-referenced same-file helper symbols (#062)
+- `read` bundled output renders `## Requested symbol` and `## Local support` sections with additive `ptcValue.bundle` metadata (#062)
+- Invalid `bundle` parameter combinations (`bundle` without `symbol`, `bundle` + `map`, `bundle` + `offset`) return clear error messages (#062)
+- Structured + human-readable fallback warnings for: unmappable files, no enclosing symbol, bundle context unavailable, symbol mapping unavailable (#062)
+- New modules: `src/grep-symbol-scope.ts`, `src/grep-output.ts` (extended), `src/read-local-bundle.ts`, `src/read-output.ts` (extended) (#062)
+
+### Tests
+- 8 new test files, 13 new tests covering schema, output rendering, integration, and fallback paths
+- pi-hashline-readmap: 100 files, 496 tests, 0 failures
+
+## Issue #066: Agent Ecosystem Local Navigation Upgrade — CLOSED ✅
+**Date**: 2026-03-24
+
+### Added
+- Added semantic edit classification for `edit` results with additive `details.ptcValue.semanticSummary` metadata (`no-op`, `whitespace-only`, `semantic`, `mixed`) (#066)
+- Added optional difftastic-backed semantic classification with process-lifetime availability caching and silent fallback to internal heuristics (#066)
+- Added moved-block counting for matching lhs-only/rhs-only difftastic chunks and surfaced semantic badges in edit TUI results (`ws-only`, `✓ semantic`, `mixed`) (#066)
+- Documented semantic edit classification and optional difftastic support in `README.md` (#066)
+- Marked source issues #063 and #064 as done because they were already shipped in PR #26 (#066)
+
+### Tests
+- Added 7 semantic-classification test files covering heuristics, difftastic availability, JSON parsing, subprocess fallback, edit integration, ptc output, and TUI badges
+- pi-hashline-readmap: 107 files, 524 tests, 0 failures

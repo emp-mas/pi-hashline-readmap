@@ -1,4 +1,4 @@
-import { buildPtcEditResult } from "./ptc-value.js";
+import { buildPtcEditResult, type SemanticSummary } from "./ptc-value.js";
 
 export interface BuildEditOutputInput {
   path: string;
@@ -7,6 +7,7 @@ export interface BuildEditOutputInput {
   firstChangedLine: number | undefined;
   warnings: string[];
   noopEdits: unknown[];
+  semanticSummary?: SemanticSummary;
 }
 
 export interface EditOutputResult {
@@ -26,6 +27,7 @@ export function buildEditOutput(input: BuildEditOutputInput): EditOutputResult {
       firstChangedLine: input.firstChangedLine,
       warnings: input.warnings,
       noopEdits: input.noopEdits,
+      ...(input.semanticSummary ? { semanticSummary: input.semanticSummary } : {}),
     }),
   };
 }

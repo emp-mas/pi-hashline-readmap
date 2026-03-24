@@ -25,6 +25,11 @@ export interface PtcFileGroup {
   lines: PtcLine[];
 }
 
+export interface SemanticSummary {
+  classification: "no-op" | "whitespace-only" | "semantic" | "mixed";
+  difftasticAvailable: boolean;
+  movedBlocks?: number;
+}
 export interface PtcEditResult {
   tool: "edit";
   ok: boolean;
@@ -34,6 +39,7 @@ export interface PtcEditResult {
   firstChangedLine: number | undefined;
   warnings: string[];
   noopEdits: unknown[];
+  semanticSummary?: SemanticSummary;
 }
 
 export function buildPtcLine(line: number, raw: string): PtcLine {
@@ -83,6 +89,7 @@ export function buildPtcEditResult(input: {
   firstChangedLine: number | undefined;
   warnings: string[];
   noopEdits: unknown[];
+  semanticSummary?: SemanticSummary;
 }): PtcEditResult {
   return {
     tool: "edit",
@@ -93,5 +100,6 @@ export function buildPtcEditResult(input: {
     firstChangedLine: input.firstChangedLine,
     warnings: [...input.warnings],
     noopEdits: [...input.noopEdits],
+    ...(input.semanticSummary ? { semanticSummary: input.semanticSummary } : {}),
   };
 }

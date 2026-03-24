@@ -94,6 +94,7 @@ export interface EditResultTextInput {
   warnings: string[];
   noopEdits: unknown[];
   errorText: string;
+  semanticClassification?: "no-op" | "whitespace-only" | "semantic" | "mixed";
 }
 
 export interface EditResultTextOutput {
@@ -101,6 +102,7 @@ export interface EditResultTextOutput {
   noOp: boolean;
   warningsBadge: string | undefined;
   errorText: string | undefined;
+  semanticBadge: string | undefined;
 }
 
 export function formatEditResultText(input: EditResultTextInput): EditResultTextOutput {
@@ -128,10 +130,20 @@ export function formatEditResultText(input: EditResultTextInput): EditResultText
   // Error text (only for errors)
   const showErrorText = isError ? errorText : undefined;
 
+  // Semantic classification badge (success only)
+  let semanticBadge: string | undefined;
+  if (!isError && !isNoOp && input.semanticClassification) {
+    switch (input.semanticClassification) {
+      case "whitespace-only": semanticBadge = "ws-only"; break;
+      case "semantic": semanticBadge = "\u2713 semantic"; break;
+      case "mixed": semanticBadge = "mixed"; break;
+    }
+  }
   return {
     diffStats,
     noOp: isNoOp,
     warningsBadge,
     errorText: showErrorText,
+    semanticBadge,
   };
 }
