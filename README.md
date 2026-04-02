@@ -7,7 +7,7 @@
 
 A drop-in [pi](https://github.com/mariozechner/pi-coding-agent) extension that upgrades the agent’s local coding workflow with hash-anchored reads and edits, structural file maps, symbol-aware navigation, structural search, and compressed `bash` output.
 
-It replaces the stock `read`, `edit`, and `grep` tools, provides an enhanced `ast_search` tool, and post-processes `bash` output so more context budget goes to useful information instead of noise.
+It replaces the stock `read`, `edit`, and `grep` tools, provides an enhanced `ast_search` tool, adds a `nu` tool for structured exploration via Nushell, and post-processes `bash` output so more context budget goes to useful information instead of noise.
 
 ## Why install this?
 
@@ -133,6 +133,21 @@ Specialized compressors currently cover:
 
 ANSI escape stripping runs on all bash output regardless.
 
+## `nu`
+When [Nushell](https://www.nushell.sh/) is installed, the extension registers a `nu` tool for structured exploration — file inspection, data wrangling, and system queries via Nushell pipelines.
+
+The `nu` tool's prompt advertises several optional Nushell plugins that enhance agentic coding workflows when installed:
+
+| Plugin | Commands | What it does |
+|--------|----------|--------------|
+| `nu_plugin_gstat` | `gstat` | Structured git status — branch, ahead/behind, staged/unstaged counts, conflicts |
+| `nu_plugin_query` | `query json`, `query xml`, `query web` | JSONPath, XPath, and CSS selector queries on structured data |
+| `nu_plugin_formats` | `from ini`, `from plist` | Parse INI and plist config file formats into structured records |
+| `nu_plugin_semver` | `into semver`, `semver bump` | Parse, compare, sort, and bump SemVer versions |
+| `nu_plugin_file` | `file` | Detect file type from magic bytes instead of extension |
+
+These plugins are **not bundled** — they must be installed separately. See [Optional Nushell plugins](#optional-nushell-plugins) below.
+
 ## Quick Start
 
 ### Install from npm
@@ -147,10 +162,46 @@ pi install git:github.com/coctostan/pi-hashline-readmap
 
 ### Optional local tools
 ```bash
+brew install nushell           # required for nu tool
 brew install ast-grep          # required for ast_search
 brew install difftastic        # optional, improves semantic edit summaries
 brew install shellcheck yq scc # optional, improves some bash output compression flows
 ```
+
+### Optional Nushell plugins
+If Nushell is installed, these plugins add capabilities to the `nu` tool. Install with `cargo install` and register with `plugin add` inside Nushell:
+```bash
+# Install plugins (requires Rust toolchain)
+cargo install nu_plugin_gstat nu_plugin_query nu_plugin_formats --locked
+cargo install nu_plugin_semver nu_plugin_file --locked
+
+# Register them inside nushell
+nu -c 'plugin add ~/.cargo/bin/nu_plugin_gstat'
+nu -c 'plugin add ~/.cargo/bin/nu_plugin_query'
+nu -c 'plugin add ~/.cargo/bin/nu_plugin_formats'
+nu -c 'plugin add ~/.cargo/bin/nu_plugin_semver'
+nu -c 'plugin add ~/.cargo/bin/nu_plugin_file'
+```
+
+After installing and registering plugins, create a pi-specific nushell config to load them:
+
+```bash
+mkdir -p ~/.config/pi/nushell
+cat > ~/.config/pi/nushell/config.nu << 'EOF'
+# Minimal nushell config for pi — only loads plugins
+plugin use gstat
+plugin use query
+plugin use formats
+plugin use semver
+plugin use file
+EOF
+```
+
+The `nu` tool resolves its config with this priority:
+1. `PI_NUSHELL_CONFIG` environment variable → uses that config path
+2. `~/.config/pi/nushell/config.nu` → uses the pi-specific config if it exists
+3. `--no-config-file` → fast, clean, no plugins (default when no config exists)
+The `nu` tool will advertise available plugin commands to the agent regardless of whether they are installed. If a plugin is missing, the agent will see a "command not found" error and fall back to other approaches.
 
 After installation, use pi normally. The package registers the upgraded tools automatically.
 

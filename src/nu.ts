@@ -2,8 +2,8 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { execFileSync, spawn } from "node:child_process";
-import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { stripAnsi } from "./rtk/ansi.js";
@@ -59,6 +59,29 @@ export interface NuExecuteResult {
 }
 
 /**
+ * Resolve nushell CLI arguments for config and plugin loading.
+ *
+ * Priority:
+ *   1. PI_NUSHELL_CONFIG env var → --config <path>
+ *   2. ~/.config/pi/nushell/config.nu if it exists → --config <path>
+ *   3. --no-config-file (clean, no plugins)
+ */
+export function resolveNuArgs(): string[] {
+  // Priority 1: Explicit env var override
+  if (process.env.PI_NUSHELL_CONFIG) {
+    return ["--config", process.env.PI_NUSHELL_CONFIG];
+  }
+
+  // Priority 2: Pi-specific config at well-known path
+  const piConfig = join(homedir(), ".config", "pi", "nushell", "config.nu");
+  if (existsSync(piConfig)) {
+    return ["--config", piConfig];
+  }
+
+  // Priority 3: Clean slate — fast, predictable, no plugins
+  return ["--no-config-file"];
+}
+/**
  * Execute a Nushell script via a temp file.
  * Streams partial output, handles timeout/abort, strips ANSI, truncates.
  */
@@ -90,9 +113,7 @@ export async function executeNuScript(opts: NuExecuteOptions): Promise<NuExecute
     return { output: `Error writing temp file: ${msg}`, exitCode: -1, timedOut: false };
   }
 
-  const args = process.env.PI_NUSHELL_CONFIG
-    ? ["--config", process.env.PI_NUSHELL_CONFIG, tmpFile]
-    : ["--no-config-file", tmpFile];
+  const args = [...resolveNuArgs(), tmpFile];
 
   return new Promise<NuExecuteResult>((resolve) => {
     let stdout = "";
@@ -244,6 +265,16 @@ http get https://api.example.com/data | get results | first 5`,
 - Group: | group-by column
 - Convert: | to json, | to csv
 - Strings in filters must be quoted: | where name == "value"`,
+  `## Nushell plugins (install separately)
+If installed, these plugins are available in nu pipelines:
+- \`gstat\` — structured git status: branch, ahead/behind, staged/unstaged counts, conflicts
+- \`query json <jsonpath>\` — JSONPath queries on structured data
+- \`query xml <xpath>\` — XPath queries on XML documents
+- \`query web <css-selector>\` — CSS selector queries on HTML
+- \`from ini\` / \`from plist\` — parse INI and plist config formats (via formats plugin)
+- \`into semver\` / \`semver bump <level>\` — parse and manipulate SemVer versions
+- \`file\` — detect file type from magic bytes, not extension
+Install: \`cargo install nu_plugin_gstat nu_plugin_query nu_plugin_formats\` then \`plugin add <path>\` inside nushell.`,
 ];
 
 export const NU_PTC = {

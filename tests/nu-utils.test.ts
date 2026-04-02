@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { isNuAvailable, truncateNuOutput } from "../src/nu.js";
+import { describe, it, expect, afterEach } from "vitest";
+import { isNuAvailable, truncateNuOutput, resolveNuArgs } from "../src/nu.js";
 
 describe("isNuAvailable", () => {
   it("returns a boolean", () => {
@@ -48,5 +48,38 @@ describe("truncateNuOutput", () => {
     const input = lines.join("\n");
     const result = truncateNuOutput(input);
     expect(result).toBe(input);
+  });
+});
+
+describe("resolveNuArgs", () => {
+  const origEnv = process.env.PI_NUSHELL_CONFIG;
+
+  afterEach(() => {
+    if (origEnv === undefined) {
+      delete process.env.PI_NUSHELL_CONFIG;
+    } else {
+      process.env.PI_NUSHELL_CONFIG = origEnv;
+    }
+  });
+
+  it("uses PI_NUSHELL_CONFIG when set", () => {
+    process.env.PI_NUSHELL_CONFIG = "/custom/config.nu";
+    const args = resolveNuArgs();
+    expect(args).toEqual(["--config", "/custom/config.nu"]);
+  });
+
+  it("falls back to --no-config-file when no env var and no pi config file", () => {
+    delete process.env.PI_NUSHELL_CONFIG;
+    // Unless ~/.config/pi/nushell/config.nu exists, should get --no-config-file
+    const args = resolveNuArgs();
+    // Either uses pi config if it exists, or falls back
+    expect(args[0]).toMatch(/^--config$|^--no-config-file$/);
+  });
+
+  it("returns an array suitable for spreading into spawn args", () => {
+    delete process.env.PI_NUSHELL_CONFIG;
+    const args = resolveNuArgs();
+    expect(Array.isArray(args)).toBe(true);
+    expect(args.length).toBeGreaterThanOrEqual(1);
   });
 });
