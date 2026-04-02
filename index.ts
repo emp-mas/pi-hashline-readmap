@@ -45,7 +45,7 @@ export default function piHashlineReadmapExtension(pi: ExtensionAPI): void {
     read: readTool,
     edit: editTool,
     grep: grepTool,
-    sg: sgTool,
+    ast_search: sgTool,
   };
 
   (globalThis as any).__hashlineToolExecutors = toolExecutors;

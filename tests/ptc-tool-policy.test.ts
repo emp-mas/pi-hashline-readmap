@@ -40,9 +40,9 @@ describe("hashline tool ptc policy contract", () => {
           mutability: "read-only",
           defaultExposure: "safe-by-default",
         },
-        sg: {
-          toolName: "sg",
-          helperName: "sg",
+        ast_search: {
+          toolName: "ast_search",
+          helperName: "ast_search",
           overridesBuiltin: false,
           mutability: "read-only",
           defaultExposure: "opt-in",
@@ -58,15 +58,15 @@ describe("hashline tool ptc policy contract", () => {
     });
     expect(HASHLINE_TOOL_PTC_POLICY.tools.read.helperName).toBe(tools.read.ptc.pythonName);
     expect(HASHLINE_TOOL_PTC_POLICY.tools.grep.helperName).toBe(tools.grep.ptc.pythonName);
-    expect(HASHLINE_TOOL_PTC_POLICY.tools.sg.helperName).toBe(tools.sg.ptc.pythonName);
+    expect(HASHLINE_TOOL_PTC_POLICY.tools.ast_search.helperName).toBe(tools.ast_search.ptc.pythonName);
     expect(HASHLINE_TOOL_PTC_POLICY.tools.edit.helperName).toBe(tools.edit.ptc.pythonName);
     expect(HASHLINE_TOOL_PTC_POLICY.tools.read.mutability).toBe(tools.read.ptc.policy);
     expect(HASHLINE_TOOL_PTC_POLICY.tools.grep.mutability).toBe(tools.grep.ptc.policy);
-    expect(HASHLINE_TOOL_PTC_POLICY.tools.sg.mutability).toBe(tools.sg.ptc.policy);
+    expect(HASHLINE_TOOL_PTC_POLICY.tools.ast_search.mutability).toBe(tools.ast_search.ptc.policy);
     expect(HASHLINE_TOOL_PTC_POLICY.tools.edit.mutability).toBe(tools.edit.ptc.policy);
     expect(HASHLINE_TOOL_PTC_POLICY.tools.read.defaultExposure).toBe(tools.read.ptc.defaultExposure);
     expect(HASHLINE_TOOL_PTC_POLICY.tools.grep.defaultExposure).toBe(tools.grep.ptc.defaultExposure);
-    expect(HASHLINE_TOOL_PTC_POLICY.tools.sg.defaultExposure).toBe(tools.sg.ptc.defaultExposure);
+    expect(HASHLINE_TOOL_PTC_POLICY.tools.ast_search.defaultExposure).toBe(tools.ast_search.ptc.defaultExposure);
     expect(HASHLINE_TOOL_PTC_POLICY.tools.edit.defaultExposure).toBe(tools.edit.ptc.defaultExposure);
   });
 });

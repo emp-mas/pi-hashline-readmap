@@ -14,15 +14,15 @@ async function captureTools() {
   return tools;
 }
 
-describe("hashline runtime ptc metadata — sg and edit", () => {
-  it("registers opt-in metadata for sg and mutating metadata for edit", async () => {
+describe("hashline runtime ptc metadata — ast_search and edit", () => {
+  it("registers opt-in metadata for ast_search and mutating metadata for edit", async () => {
     const tools = await captureTools();
-    expect(tools.sg.ptc).toEqual({
+    expect(tools.ast_search.ptc).toEqual({
       callable: true,
       enabled: true,
       policy: "read-only",
       readOnly: true,
-      pythonName: "sg",
+      pythonName: "ast_search",
       defaultExposure: "opt-in",
     });
     expect(tools.edit.ptc).toEqual({

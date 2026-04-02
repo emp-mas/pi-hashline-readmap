@@ -9,7 +9,7 @@ Repo-local guide for working on `pi-hashline-readmap`.
 - `read` — hashlined reads, structural maps, symbol-addressable reads
 - `edit` — hash-anchored edits with semantic diff summaries
 - `grep` — hashlined search results
-- `sg` — ast-grep wrapper with hashlined output
+- `ast_search` — ast-grep wrapper with hashlined output
 - `bash` filtering — command-aware output compression
 
 The extension is symlinked from `~/.pi/agent/extensions/pi-hashline-readmap` to this workspace, so local edits take effect immediately.
@@ -98,7 +98,7 @@ npm run typecheck
 
 ### Tool output contract change
 
-When changing `read`, `edit`, `grep`, or `sg` output:
+When changing `read`, `edit`, `grep`, or `ast_search` output:
 
 1. Update the relevant `*-output.ts` / render helper modules
 2. Update `prompts/` docs if the contract changed

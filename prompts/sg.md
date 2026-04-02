@@ -1,4 +1,6 @@
-Structural code search using **ast-grep** (`sg`). This tool finds code by **AST structure** (not raw text) and returns **hashline-anchored** results ready for the `edit` tool.
+AST-aware structural code search. Use this when grep is too brittle and you need to match code shape rather than raw text. Prefer over grep for finding function calls, imports, JSX elements, or syntax patterns. Returns anchored matches suitable for edit.
+
+Use for AST-aware code pattern search when text search is too brittle.
 
 ## Pattern Syntax (metavariables)
 
@@ -22,7 +24,7 @@ Structural code search using **ast-grep** (`sg`). This tool finds code by **AST 
 
 ## Workflow: search → edit
 
-1. Run `sg({ pattern: "console.log($$$ARGS)" })`
+1. Run `ast_search({ pattern: "console.log($$$ARGS)" })`
 2. Review output grouped by file (`--- path ---`) with anchors (`>>LINE:HASH|...`)
 3. Use anchors directly with `edit({ path: "file.ts", edits: [{ set_line: { anchor: "42:ab", new_text: "..." } }] })`
 

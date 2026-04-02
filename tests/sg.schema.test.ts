@@ -14,10 +14,11 @@ async function getSgTool() {
 }
 
 describe("sg tool schema", () => {
-  it("registers name=sg and requires pattern only", async () => {
+  it("registers name=ast_search and requires pattern only", async () => {
     const tool = await getSgTool();
 
-    expect(tool.name).toBe("sg");
+    expect(tool.name).toBe("ast_search");
+    expect(tool.ptc.pythonName).toBe("ast_search");
     expect(tool.parameters).toBeTruthy();
 
     expect(tool.parameters.properties.pattern.type).toBe("string");

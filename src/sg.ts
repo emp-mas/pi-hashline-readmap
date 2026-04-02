@@ -44,7 +44,8 @@ export function mergeRanges(ranges: SgRange[]): SgRange[] {
   return merged;
 }
 
-const SG_DESC = readFileSync(new URL("../prompts/sg.md", import.meta.url), "utf-8").trim();
+const SG_PROMPT = readFileSync(new URL("../prompts/sg.md", import.meta.url), "utf-8").trim();
+const SG_DESC = SG_PROMPT.split(/\n\s*\n/, 1)[0]?.trim() ?? SG_PROMPT;
 
 function execFileText(
   cmd: string,
@@ -74,13 +75,13 @@ export function registerSgTool(pi: ExtensionAPI) {
     enabled: true,
     policy: "read-only" as const,
     readOnly: true,
-    pythonName: "sg",
+    pythonName: "ast_search",
     defaultExposure: "opt-in" as const,
   };
 
   const tool = {
-    name: "sg",
-    label: "AST Grep",
+    name: "ast_search",
+    label: "AST Search",
     description: SG_DESC,
     parameters: Type.Object({
       pattern: Type.String({ description: "AST pattern to search for" }),
@@ -215,7 +216,7 @@ export function registerSgTool(pi: ExtensionAPI) {
     },
     renderCall(args: any, theme: any, ...rest: any[]) {
       const _context = rest[0];
-      let text = theme.fg("toolTitle", theme.bold("sg "));
+      let text = theme.fg("toolTitle", theme.bold("ast_search "));
       text += theme.fg("accent", args.pattern);
       if (args.lang) {
         text += theme.fg("dim", ` (${args.lang})`);
@@ -244,7 +245,7 @@ export function registerSgTool(pi: ExtensionAPI) {
         return new Text(theme.fg("error", firstLine), 0, 0);
       }
       const ptcValue = (result.details as any)?.ptcValue as
-        | { tool: "sg"; files: Array<{ path: string; lines: any[] }> }
+        | { tool: "ast_search"; files: Array<{ path: string; lines: any[] }> }
         | undefined;
       const files = ptcValue?.files ?? [];
       if (files.length === 0) {

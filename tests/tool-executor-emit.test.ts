@@ -19,7 +19,7 @@ describe("index.ts emits and stashes tool executors (task 2)", () => {
     init(pi as any);
     const stash = (globalThis as any).__hashlineToolExecutors;
     expect(stash).toBeDefined();
-    expect(Object.keys(stash).sort()).toEqual(["edit", "grep", "read", "sg"]);
+    expect(Object.keys(stash).sort()).toEqual(["ast_search", "edit", "grep", "read"]);
   });
 
   it("emit channel is exactly 'hashline:tool-executors'", async () => {
@@ -30,7 +30,6 @@ describe("index.ts emits and stashes tool executors (task 2)", () => {
       (c: any[]) => c[0] === "hashline:tool-executors"
     );
     expect(emitCall).toBeDefined();
-    // Payload should be the SAME object reference as globalThis stash
     expect(emitCall![1]).toBe((globalThis as any).__hashlineToolExecutors);
   });
 });

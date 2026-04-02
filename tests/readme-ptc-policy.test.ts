@@ -13,7 +13,7 @@ describe("README.md ptc policy docs", () => {
     expect(readme).toContain("### PTC tool policy contract");
     expect(readme).toContain("`HASHLINE_TOOL_PTC_POLICY`");
     expect(readme).toContain("`read` and `grep` are safe-by-default");
-    expect(readme).toContain("`sg` is opt-in");
+    expect(readme).toContain("`ast_search` is opt-in");
     expect(readme).toContain("`edit` is not safe-by-default");
     expect(readme).toContain("`pi-prompt-assembler` may optionally consume this contract");
   });

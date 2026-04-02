@@ -35,7 +35,7 @@ describe("buildSgOutput", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders grouped sg matches through one shared builder", async () => {
+  it("renders grouped ast_search matches through one shared builder", async () => {
     const spy = vi.spyOn(sgOutputModule, "buildSgOutput");
     const tool = await getSgTool();
     const filePath = resolve(fixturesDir, "small.ts");
@@ -69,6 +69,7 @@ describe("buildSgOutput", () => {
     ].join("\n");
 
     expect(built.text).toBe(expectedText);
+    expect(built.ptcValue.tool).toBe("ast_search");
     expect(getTextContent(result)).toBe(built.text);
     expect(result.details?.ptcValue).toEqual(built.ptcValue);
   });
@@ -94,6 +95,7 @@ describe("buildSgOutput", () => {
     );
 
     const built = spy.mock.results.at(-1)?.value;
+    expect(built.ptcValue.tool).toBe("ast_search");
     expect(getTextContent(result)).toBe(built.text);
     expect(result.details?.ptcValue).toEqual(built.ptcValue);
   });

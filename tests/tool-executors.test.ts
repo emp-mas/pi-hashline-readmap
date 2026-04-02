@@ -47,7 +47,7 @@ describe("register functions return tool definitions", () => {
     const pi = createMockPi();
     const tool = registerSgTool(pi as any);
     expect(tool).toBeDefined();
-    expect(tool.name).toBe("sg");
+    expect(tool.name).toBe("ast_search");
     expect(typeof tool.execute).toBe("function");
     expect(typeof tool.description).toBe("string");
     expect(tool.parameters).toBeDefined();
@@ -84,7 +84,7 @@ describe("index.ts emits and stashes tool executors", () => {
     expect(stash.read).toBeDefined();
     expect(stash.edit).toBeDefined();
     expect(stash.grep).toBeDefined();
-    expect(stash.sg).toBeDefined();
+    expect(stash.ast_search).toBeDefined();
   });
 
   it("emits on hashline:tool-executors channel", async () => {
@@ -97,7 +97,7 @@ describe("index.ts emits and stashes tool executors", () => {
         read: expect.objectContaining({ name: "read" }),
         edit: expect.objectContaining({ name: "edit" }),
         grep: expect.objectContaining({ name: "grep" }),
-        sg: expect.objectContaining({ name: "sg" }),
+        ast_search: expect.objectContaining({ name: "ast_search" }),
       })
     );
   });
@@ -107,7 +107,7 @@ describe("index.ts emits and stashes tool executors", () => {
     const { default: init } = await import("../index.js");
     init(pi as any);
     const stash = (globalThis as any).__hashlineToolExecutors;
-    for (const key of ["read", "edit", "grep", "sg"]) {
+    for (const key of ["read", "edit", "grep", "ast_search"]) {
       expect(typeof stash[key].execute).toBe("function");
     }
   });
@@ -120,10 +120,8 @@ describe("index.ts emits and stashes tool executors", () => {
     });
     const { default: init } = await import("../index.js");
     init(pi as any);
-    // globalThis should have been set BEFORE emit was called
     expect(stashAtEmitTime).toBeDefined();
     expect(stashAtEmitTime.read).toBeDefined();
-    // This assertion will fail until emit ordering is verified
     expect(stashAtEmitTime).toBe((globalThis as any).__hashlineToolExecutors);
   });
 
@@ -135,7 +133,7 @@ describe("index.ts emits and stashes tool executors", () => {
       (c: any[]) => c[0] === "hashline:tool-executors"
     )?.[1] as Record<string, any>;
     expect(payload).toBeDefined();
-    for (const key of ["read", "edit", "grep", "sg"]) {
+    for (const key of ["read", "edit", "grep", "ast_search"]) {
       expect(typeof payload[key].description).toBe("string");
       expect(payload[key].parameters).toBeDefined();
       expect(typeof payload[key].execute).toBe("function");

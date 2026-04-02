@@ -7,7 +7,7 @@
 
 A drop-in [pi](https://github.com/mariozechner/pi-coding-agent) extension that upgrades the agent’s local coding workflow with hash-anchored reads and edits, structural file maps, symbol-aware navigation, structural search, and compressed `bash` output.
 
-It replaces the stock `read`, `edit`, and `grep` tools, provides an enhanced `sg` tool, and post-processes `bash` output so more context budget goes to useful information instead of noise.
+It replaces the stock `read`, `edit`, and `grep` tools, provides an enhanced `ast_search` tool, and post-processes `bash` output so more context budget goes to useful information instead of noise.
 
 ## Why install this?
 
@@ -23,7 +23,7 @@ If you use pi for real code changes, the stock toolchain has a few recurring pro
 ## Benefits
 
 ### Safer edits
-`read`, `grep`, and `sg` return `LINE:HASH|content` anchors. Those anchors can be fed directly into `edit`, which means the model edits exactly the line it read.
+`read`, `grep`, and `ast_search` return `LINE:HASH|content` anchors. Those anchors can be fed directly into `edit`, which means the model edits exactly the line it read.
 
 ```text
 45:e4|router.addRoute("/api", handler);
@@ -39,7 +39,7 @@ This package stays focused on local file and symbol work:
 - symbol lookup in `read`
 - symbol-scoped grep with enclosing symbol blocks
 - local same-file support bundles for `read(symbol=...)`
-- structural code search via `sg`
+- structural code search via `ast_search`
 
 That gives agents more context without turning this package into a repo-wide code graph tool.
 
@@ -79,7 +79,7 @@ This package is a good fit when you want pi to:
 - `bundle: "local"` requires `symbol` and cannot be combined with `map` or `offset`.
 
 ## `edit`
-- hash-verified anchored edits using `LINE:HASH` anchors from `read`, `grep`, or `sg`
+- hash-verified anchored edits using `LINE:HASH` anchors from `read`, `grep`, or `ast_search`
 - operations: `set_line`, `replace_lines`, `insert_after`, `replace`
 - compact diff and full diff support
 - mismatch diagnostics with context
@@ -108,7 +108,7 @@ The success text output stays unchanged. Semantic classification is additive met
 ### Symbol-scoped grep
 With `scope: "symbol"`, matches are grouped by their enclosing function, method, class, or other mapped symbol when possible. Unsupported files and unmappable cases fall back gracefully to normal grep output.
 
-## `sg`
+## `ast_search`
 - wraps [ast-grep](https://ast-grep.github.io/) for structural code search
 - returns merged, hash-anchored match blocks grouped by file
 - ideal for structure-aware search → edit workflows
@@ -147,7 +147,7 @@ pi install git:github.com/coctostan/pi-hashline-readmap
 
 ### Optional local tools
 ```bash
-brew install ast-grep          # required for sg
+brew install ast-grep          # required for ast_search
 brew install difftastic        # optional, improves semantic edit summaries
 brew install shellcheck yq scc # optional, improves some bash output compression flows
 ```
@@ -256,9 +256,9 @@ grep({ pattern: "addRoute", path: "src", literal: true, scope: "symbol" })
 
 Use this when the match location alone is not enough and you want the enclosing function or method block.
 
-## Structural code search with sg
+## Structural code search with ast_search
 ```text
-sg({ pattern: "console.log($$$ARGS)", lang: "typescript", path: "src" })
+ast_search({ pattern: "console.log($$$ARGS)", lang: "typescript", path: "src" })
 ```
 
 Use this for AST-level search patterns instead of raw text matching.
@@ -272,7 +272,7 @@ Includes path, selected range, warnings, truncation info, symbol metadata, map s
 ### `grep`
 Includes total matches, per-record anchors, and additive symbol-scope metadata when `scope: "symbol"` is used.
 
-### `sg`
+### `ast_search`
 Includes grouped match ranges and anchored lines.
 
 ### `edit`
@@ -289,7 +289,7 @@ import { HASHLINE_TOOL_PTC_POLICY } from "pi-hashline-readmap";
 
 Policy summary:
 - `read` and `grep` are safe-by-default and read-only
-- `sg` is opt-in and read-only
+- `ast_search` is opt-in and read-only
 - `edit` is not safe-by-default and is mutating
 
 `pi-prompt-assembler` may optionally consume this contract, but this package does not depend on it.
@@ -298,7 +298,7 @@ Policy summary:
 On load, the extension emits tool executor references for downstream consumers:
 
 ```ts
-pi.events.emit("hashline:tool-executors", { read, edit, grep, sg });
+pi.events.emit("hashline:tool-executors", { read, edit, grep, ast_search });
 ```
 
 The same executors are also exposed at `globalThis.__hashlineToolExecutors`.
@@ -330,7 +330,7 @@ The same executors are also exposed at `globalThis.__hashlineToolExecutors`.
 - `insert_after`
 - `replace`
 
-## `sg` parameters
+## `ast_search` parameters
 - `pattern`
 - `lang`
 - `path`

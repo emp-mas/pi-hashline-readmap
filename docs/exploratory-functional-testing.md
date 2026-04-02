@@ -46,7 +46,7 @@ Practical expectation:
 
 Expected behavior:
 
-- applies anchor-verified edits using anchors from `read`, `grep`, or `sg`
+- applies anchor-verified edits using anchors from `read`, `grep`, or `ast_search`
 - supports `set_line`, `replace_lines`, `insert_after`, and `replace`
 - rejects stale anchors with useful mismatch diagnostics
 - returns diff-oriented result metadata in structured output
@@ -72,7 +72,7 @@ Practical expectation:
 
 - a user should be able to search, understand the enclosing code region, and edit from the search result directly
 
-### `sg`
+### `ast_search`
 
 Expected behavior:
 
@@ -107,7 +107,7 @@ The present test suite covers, at minimum:
 - `read` output shape, truncation, maps, symbol lookup, local bundles, and rendering helpers
 - `edit` output, diff generation, semantic classification, difftastic integration/fallbacks, and anchor safety
 - `grep` output, summary mode, symbol-scoped grouping, truncation indicators, and rendering helpers
-- `sg` formatting, schema handling, execution behavior, no-match behavior, and path handling
+- `ast_search` formatting, schema handling, execution behavior, no-match behavior, and path handling
 - binary / control-character handling regressions
 - map cache behavior
 - RTK / bash filter routing and compressor-specific behavior
@@ -121,7 +121,7 @@ When doing manual validation beyond the automated suite, the highest-value check
 1. `read` on a large source file with `map: true`
 2. `read(symbol=...)` on an ambiguous and an unambiguous symbol
 3. `grep(..., scope: "symbol")` on a mapped TypeScript or Python file
-4. `sg(...)` with both a match and a deliberate no-match query
+4. `ast_search(...)` with both a match and a deliberate no-match query
 5. `edit` using a fresh anchor, then repeating with a stale anchor to confirm mismatch handling
 6. representative `bash` commands such as `npm test`, `tsc --noEmit`, `git diff`, `docker build`, `curl`, and `find`
 

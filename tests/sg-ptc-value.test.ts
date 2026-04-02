@@ -32,7 +32,7 @@ describe("sg ptcValue", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it("returns grouped structured results with merged ranges and anchored lines while keeping sg text unchanged", async () => {
+  it("returns grouped structured results with merged ranges and anchored lines while keeping ast_search text unchanged", async () => {
     const tool = await getSgTool();
     const filePath = resolve(fixturesDir, "small.ts");
     const sourceLines = readFileSync(filePath, "utf-8").replace(/\r\n/g, "\n").split("\n");
@@ -58,7 +58,7 @@ describe("sg ptcValue", () => {
 
     expect(ptc).toBeDefined();
     expect(ptc).toEqual({
-      tool: "sg",
+      tool: "ast_search",
       files: [
         {
           path: filePath,

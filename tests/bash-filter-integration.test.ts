@@ -33,15 +33,13 @@ describe("bash filter integration", () => {
 
     expect(handlers["tool_result"]).toBeDefined();
 
-    // Non-bash tools must be untouched (AC17: read, grep, edit, sg)
     const hashlineText = "1:ab|some hashline content";
 
     expect(await handlers["tool_result"](makeEvent("read", "t-read", { path: "foo.ts" }, hashlineText))).toBeUndefined();
     expect(await handlers["tool_result"](makeEvent("grep", "t-grep", { pattern: "x" }, hashlineText))).toBeUndefined();
     expect(await handlers["tool_result"](makeEvent("edit", "t-edit", { path: "foo.ts" }, hashlineText))).toBeUndefined();
-    expect(await handlers["tool_result"](makeEvent("sg", "t-sg", { pattern: "$X" }, hashlineText))).toBeUndefined();
+    expect(await handlers["tool_result"](makeEvent("ast_search", "t-ast", { pattern: "$X" }, hashlineText))).toBeUndefined();
 
-    // Bash is compressed (at least ANSI-stripped)
     const bashEvent = makeEvent("bash", "t-bash", { command: "echo hello" }, "\x1b[32mhello\x1b[0m");
 
     const result = await handlers["tool_result"](bashEvent);

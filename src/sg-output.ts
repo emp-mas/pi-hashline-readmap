@@ -15,7 +15,7 @@ export interface BuildSgOutputInput {
 export interface SgOutputResult {
   text: string;
   ptcValue: {
-    tool: "sg";
+    tool: "ast_search";
     files: Array<{
       path: string;
       ranges: PtcRange[];
@@ -29,7 +29,7 @@ export function buildSgOutput(input: BuildSgOutputInput): SgOutputResult {
     return {
       text: `No matches found for pattern: ${input.pattern}`,
       ptcValue: {
-        tool: "sg",
+        tool: "ast_search",
         files: [],
       },
     };
@@ -46,7 +46,7 @@ export function buildSgOutput(input: BuildSgOutputInput): SgOutputResult {
   return {
     text: blocks.join("\n"),
     ptcValue: {
-      tool: "sg",
+      tool: "ast_search",
       files: input.files.map((file) => ({
         path: file.path,
         ranges: file.ranges.map((range) => ({ ...range })),

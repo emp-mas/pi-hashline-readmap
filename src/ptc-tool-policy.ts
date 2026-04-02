@@ -1,4 +1,4 @@
-export type HashlineToolName = "read" | "grep" | "sg" | "edit";
+export type HashlineToolName = "read" | "grep" | "ast_search" | "edit";
 
 export type HashlineToolMutability = "read-only" | "mutating";
 
@@ -37,9 +37,9 @@ export const HASHLINE_TOOL_PTC_POLICY: HashlineToolPtcPolicy = {
       mutability: "read-only",
       defaultExposure: "safe-by-default",
     },
-    sg: {
-      toolName: "sg",
-      helperName: "sg",
+    ast_search: {
+      toolName: "ast_search",
+      helperName: "ast_search",
       overridesBuiltin: false,
       mutability: "read-only",
       defaultExposure: "opt-in",

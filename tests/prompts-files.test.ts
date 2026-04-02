@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest"; // AC15
+import { describe, it, expect } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -31,7 +31,7 @@ describe("prompts directory (AC15)", () => {
     expect(readPrompt).toContain("Images");
   });
 
-  it("sg prompt exists and documents metavariables and workflow", () => {
+  it("sg prompt exists and documents metavariables, workflow, and the ast_search snippet", () => {
     const sgPromptPath = resolve(root, "prompts/sg.md");
     expect(existsSync(sgPromptPath)).toBe(true);
 
@@ -39,6 +39,7 @@ describe("prompts directory (AC15)", () => {
     expect(content).toContain("$NAME");
     expect(content).toContain("$$$ARGS");
     expect(content).toContain("$_");
+    expect(content).toContain("Use for AST-aware code pattern search when text search is too brittle.");
     expect(content.toLowerCase()).toContain("workflow");
     expect(content.toLowerCase()).toContain("edit");
   });
