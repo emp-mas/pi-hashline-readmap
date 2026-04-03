@@ -34,7 +34,7 @@ describe("README.md (AC-1, AC-2)", () => {
 
   it("mentions supported languages", () => {
     const readme = readFileSync(resolve(root, "README.md"), "utf8");
-    expect(readme).toContain("17 languages");
+    expect(readme).toContain("19 languages");
   });
 
   it("credits upstream projects", () => {

@@ -73,7 +73,7 @@ This package is a good fit when you want pi to:
 - custom TUI rendering with symbol, map, warning, and truncation badges
 
 ### `read` feature details
-- Structural maps support **17 languages**: TypeScript, JavaScript, Python, Rust, Go, C, C++, Clojure, SQL, JSON, JSONL, Markdown, YAML, TOML, CSV, and related mapped variants in the readmap engine.
+- Structural maps support **19 languages**: TypeScript, JavaScript, Python, Rust, Go, C, C++, Swift, Shell/Bash, Clojure, SQL, JSON, JSONL, Markdown, YAML, TOML, CSV, and related mapped variants in the readmap engine. The Swift mapper recognizes classes, actors, structs, enums, protocols, extensions, functions (including operator overloads), and deinit lifecycle blocks.
 - `symbol` and `map` are mutually exclusive.
 - `symbol` cannot be combined with `offset` or `limit`.
 - `bundle: "local"` requires `symbol` and cannot be combined with `map` or `offset`.
@@ -428,8 +428,8 @@ npm run typecheck
 ```
 
 As of the current repository state, the suite passes with:
-- **107** test files
-- **524** tests
+- **125** test files
+- **668** tests
 
 ### Local development notes
 This repository is intended to be used as a pi extension workspace. In local development, changes can take effect immediately when the extension is installed from the local checkout.
