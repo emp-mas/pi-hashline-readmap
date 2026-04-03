@@ -69,6 +69,19 @@ function execFileText(
   });
 }
 
+/**
+ * Check if the `sg` (ast-grep) binary is available in PATH.
+ * Runs `sg --version` synchronously with a 3-second timeout.
+ */
+export function isSgAvailable(): boolean {
+  try {
+    cp.execFileSync("sg", ["--version"], { timeout: 3000, stdio: "pipe" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function registerSgTool(pi: ExtensionAPI) {
   const ptc = {
     callable: true,

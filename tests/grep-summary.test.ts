@@ -43,7 +43,7 @@ describe("grep summary mode", () => {
 		expect(lines[2]).toBe("src/bar.ts: 2 matches");
 		// No hashline anchors anywhere
 		expect(output).not.toContain(">>");
-		expect(output).not.toMatch(/\d+:[0-9a-f]{2}\|/);
+		expect(output).not.toMatch(/\d+:[0-9a-f]{3}\|/);
 	});
 });
 
@@ -97,6 +97,6 @@ describe("grep summary schema and integration", () => {
 		const text = getTextContent(result);
 		expect(text).toMatch(/^\[\d+ matches in \d+ files\]/);
 		expect(text).toContain(`${filePath}: `);
-		expect(text).not.toMatch(/\d+:[0-9a-f]{2}\|/);
+		expect(text).not.toMatch(/\d+:[0-9a-f]{3}\|/);
 	});
 });

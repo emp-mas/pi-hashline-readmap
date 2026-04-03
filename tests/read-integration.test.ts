@@ -37,7 +37,7 @@ function getTextContent(result: any): string {
 function parseHashlineRows(text: string): HashlineRow[] {
 	const rows: HashlineRow[] = [];
 	for (const line of text.split("\n")) {
-		const match = line.match(/^(\d+):([0-9a-f]{2})\|(.*)$/);
+		const match = line.match(/^(\d+):([0-9a-f]{3})\|(.*)$/);
 		if (!match) continue;
 		rows.push({
 			line: Number(match[1]),
@@ -57,7 +57,7 @@ describe("read integration — combined output", () => {
 		const result = await callReadTool({ path: resolve(fixturesDir, "small.ts") });
 		const text = getTextContent(result);
 
-		expect(text).toMatch(/^\d+:[0-9a-f]{2}\|/m);
+		expect(text).toMatch(/^\d+:[0-9a-f]{3}\|/m);
 		expect(text).not.toContain("File Map:");
 		expect(text).not.toContain("[Output truncated:");
 	});
@@ -66,7 +66,7 @@ describe("read integration — combined output", () => {
 		const result = await callReadTool({ path: resolve(fixturesDir, "large.ts") });
 		const text = getTextContent(result);
 
-		expect(text).toMatch(/^\d+:[0-9a-f]{2}\|/m);
+		expect(text).toMatch(/^\d+:[0-9a-f]{3}\|/m);
 		expect(text).toContain("[Output truncated:");
 		expect(text).toContain("File Map:");
 		expect(text).toContain("EventEmitter");
@@ -84,7 +84,7 @@ describe("read integration — combined output", () => {
 		});
 		const text = getTextContent(result);
 
-		expect(text).toMatch(/^\d+:[0-9a-f]{2}\|/m);
+		expect(text).toMatch(/^\d+:[0-9a-f]{3}\|/m);
 		expect(text).not.toContain("File Map:");
 	});
 
@@ -95,7 +95,7 @@ describe("read integration — combined output", () => {
 		});
 		const text = getTextContent(result);
 
-		expect(text).toMatch(/^\d+:[0-9a-f]{2}\|/m);
+		expect(text).toMatch(/^\d+:[0-9a-f]{3}\|/m);
 		expect(text).not.toContain("File Map:");
 	});
 
@@ -103,7 +103,7 @@ describe("read integration — combined output", () => {
 		const result = await callReadTool({ path: resolve(fixturesDir, "small.py") });
 		const text = getTextContent(result);
 
-		expect(text).toMatch(/^\d+:[0-9a-f]{2}\|/m);
+		expect(text).toMatch(/^\d+:[0-9a-f]{3}\|/m);
 		expect(text).not.toContain("File Map:");
 		expect(text).not.toContain("[Output truncated:");
 	});
@@ -112,7 +112,7 @@ describe("read integration — combined output", () => {
 		const result = await callReadTool({ path: resolve(fixturesDir, "plain.txt") });
 		const text = getTextContent(result);
 
-		expect(text).toMatch(/^\d+:[0-9a-f]{2}\|/m);
+		expect(text).toMatch(/^\d+:[0-9a-f]{3}\|/m);
 		expect(text).not.toContain("File Map:");
 		expect(text).not.toContain("[Output truncated:");
 	});
@@ -127,7 +127,7 @@ describe("read integration — combined output", () => {
 		const text = getTextContent(result);
 
 		expect(result.isError).not.toBe(true);
-		expect(text).toMatch(/^\d+:[0-9a-f]{2}\|/m);
+		expect(text).toMatch(/^\d+:[0-9a-f]{3}\|/m);
 		expect(text).not.toContain("File Map:");
 	});
 });
@@ -141,7 +141,7 @@ describe("read integration — hashline format", () => {
 
 		expect(rows.length).toBeGreaterThan(0);
 		for (const row of rows) {
-			expect(`${row.line}:${row.hash}|${row.content}`).toMatch(/^\d+:[0-9a-f]{2}\|/);
+			expect(`${row.line}:${row.hash}|${row.content}`).toMatch(/^\d+:[0-9a-f]{3}\|/);
 		}
 		for (let i = 0; i < rows.length; i++) {
 			expect(rows[i].line).toBe(i + 1);
@@ -167,8 +167,8 @@ describe("read integration — hashline format", () => {
 	});
 
 	it("parsed rows expose reusable LINE:HASH anchors", () => {
-		const [row] = parseHashlineRows("12:ab|hello world");
-		expect((row as any).anchor).toBe("12:ab");
+		const [row] = parseHashlineRows("12:abc|hello world");
+		expect((row as any).anchor).toBe("12:abc");
 	});
 });
 describe("read integration — edit after read", () => {

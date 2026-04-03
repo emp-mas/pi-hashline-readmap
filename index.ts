@@ -2,8 +2,9 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { registerReadTool } from "./src/read.js";
 import { registerEditTool } from "./src/edit.js";
 import { registerGrepTool } from "./src/grep.js";
-import { registerSgTool } from "./src/sg.js";
+import { registerSgTool, isSgAvailable } from "./src/sg.js";
 import { registerNuTool } from "./src/nu.js";
+import { registerWriteTool } from "./src/write.js";
 import { filterBashOutput } from "./src/rtk/bash-filter.js";
 import { stripAnsi } from "./src/rtk/ansi.js";
 
@@ -39,15 +40,22 @@ const BASH_FILTER_ENABLED = true;
 export default function piHashlineReadmapExtension(pi: ExtensionAPI): void {
   const readTool = registerReadTool(pi);
   const editTool = registerEditTool(pi);
-  const grepTool = registerGrepTool(pi);
+  const sgAvailable = isSgAvailable();
+  const astSearchGuideline = sgAvailable
+    ? 'Use `ast_search` for structural code patterns (function calls, imports, JSX). Use `grep` for text matching.'
+    : 'For AST-aware structural code search (function calls, imports, JSX elements), install ast-grep: `brew install ast-grep`';
+
+  const grepTool = registerGrepTool(pi, { astSearchGuideline });
   const sgTool = registerSgTool(pi);
   registerNuTool(pi);
+  const writeTool = registerWriteTool(pi);
 
   const toolExecutors = {
     read: readTool,
     edit: editTool,
     grep: grepTool,
     ast_search: sgTool,
+    write: writeTool,
   };
 
   (globalThis as any).__hashlineToolExecutors = toolExecutors;

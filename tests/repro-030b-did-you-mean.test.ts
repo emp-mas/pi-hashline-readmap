@@ -32,7 +32,7 @@ describe("Feature #030b: Did you mean? suggestions on anchor mismatch", () => {
       // Must contain "Did you mean?" section
       expect(err.message).toContain("Did you mean");
       // Must suggest line(s) with LINE:HASH|content format
-      expect(err.message).toMatch(/\d+:[0-9a-f]{2}\|/);
+      expect(err.message).toMatch(/\d+:[0-9a-f]{3}\|/);
       // Should suggest line 3 which has similar content "const c = 3; // modified"
       expect(err.message).toContain("const c = 3;");
     }
@@ -94,7 +94,7 @@ describe("Feature #030b: Did you mean? suggestions on anchor mismatch", () => {
       const afterSection = err.message.slice(didYouMeanIdx);
       const suggestionLines = afterSection
         .split("\n")
-        .filter((l: string) => /^\s+\d+:[0-9a-f]{2}\|/.test(l));
+        .filter((l: string) => /^\s+\d+:[0-9a-f]{3}\|/.test(l));
       expect(suggestionLines.length).toBeLessThanOrEqual(3);
       expect(suggestionLines.length).toBeGreaterThanOrEqual(1);
     }

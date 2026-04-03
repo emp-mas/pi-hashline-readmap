@@ -98,6 +98,6 @@ describe("Bug #021: binary files read/grepped without warning", () => {
 
     const readOutput = text(readResult);
     expect(hasBinaryWarning(readOutput)).toBe(false);
-    expect(readOutput).toMatch(/^1:[0-9a-f]{2}\|/m);
+    expect(readOutput).toMatch(/^1:[0-9a-f]{3}\|/m);
   });
 });

@@ -43,7 +43,7 @@ interface NoopEdit {
 
 // ─── Hash computation ───────────────────────────────────────────────────
 
-const HASH_LEN = 2;
+const HASH_LEN = 3;
 const RADIX = 16;
 const HASH_MOD = RADIX ** HASH_LEN;
 const DICT = Array.from({ length: HASH_MOD }, (_, i) => i.toString(RADIX).padStart(HASH_LEN, "0"));
@@ -51,7 +51,8 @@ const DICT = Array.from({ length: HASH_MOD }, (_, i) => i.toString(RADIX).padSta
 const HASHLINE_PREFIX_RE = /^\d+:[0-9a-zA-Z]{1,16}\|/;
 const DIFF_PLUS_RE = /^\+(?!\+)/;
 const CONFUSABLE_HYPHENS_RE = /[\u2010\u2011\u2012\u2013\u2014\u2212\uFE63\uFF0D]/g;
-const HASH_RELOCATION_WINDOW = 20;
+const HASH_RELOCATION_WINDOW_BASE = 20;
+const HASH_RELOCATION_WINDOW_CAP = 100;
 
 let h32Fn: ((input: string, seed?: number) => number) | null = null;
 let initPromise: Promise<void> | null = null;
@@ -155,7 +156,7 @@ function findSimilarLines(
 		return `  ${c.line}:${hash}|${escapeControlCharsForDisplay(c.content)}`;
 	});
 }
-function formatMismatchError(mismatches: HashMismatch[], fileLines: string[]): string {
+function formatMismatchError(mismatches: HashMismatch[], fileLines: string[], relocationWindow: number): string {
 	const mismatchSet = new Map<number, HashMismatch>();
 	for (const m of mismatches) mismatchSet.set(m.line, m);
 
@@ -168,7 +169,7 @@ function formatMismatchError(mismatches: HashMismatch[], fileLines: string[]): s
 
 	const sorted = [...displayLines].sort((a, b) => a - b);
 	const out: string[] = [
-		`${mismatches.length} line${mismatches.length > 1 ? "s have" : " has"} changed since last read. Auto-relocation checks only within ±${HASH_RELOCATION_WINDOW} lines of each anchor. Use the updated LINE:HASH references shown below (>>> marks changed lines).`,
+		`${mismatches.length} line${mismatches.length > 1 ? "s have" : " has"} changed since last read. Auto-relocation checks only within ±${relocationWindow} lines of each anchor. Use the updated LINE:HASH references shown below (>>> marks changed lines).`,
 		"",
 	];
 
@@ -368,6 +369,9 @@ export function applyHashlineEdits(
 	throwIfAborted(signal);
 	if (!edits.length) return { content, firstChangedLine: undefined };
 
+	// Compute adaptive relocation window based on edit batch size
+	const relocationWindow = Math.min(Math.max(HASH_RELOCATION_WINDOW_BASE, edits.length * 5), HASH_RELOCATION_WINDOW_CAP);
+
 	const fileLines = content.split("\n");
 	const origLines = [...fileLines];
 	let firstChanged: number | undefined;
@@ -404,14 +408,13 @@ export function applyHashlineEdits(
 
 	const relocationNotes = new Set<string>();
 
-	function findRelocationLine(expectedHash: string, hintLine: number): number | undefined {
+	function findRelocationLine(expectedHash: string, hintLine: number, relocationWindow: number): number | undefined {
 		const candidates = hashToLines.get(expectedHash);
 		if (!candidates?.length) return undefined;
 
-		const minLine = Math.max(1, hintLine - HASH_RELOCATION_WINDOW);
-		const maxLine = Math.min(fileLines.length, hintLine + HASH_RELOCATION_WINDOW);
+		const minLine = Math.max(1, hintLine - relocationWindow);
+		const maxLine = Math.min(fileLines.length, hintLine + relocationWindow);
 		let match: number | undefined;
-
 		for (const candidate of candidates) {
 			if (candidate < minLine || candidate > maxLine) continue;
 			if (match !== undefined) return undefined; // ambiguous within window
@@ -430,13 +433,40 @@ export function applyHashlineEdits(
 		const originalLine = ref.line;
 		const actual = lineHashes[originalLine - 1];
 		if (actual === expected) return true;
-		const relocated = findRelocationLine(expected, originalLine);
+		const relocated = findRelocationLine(expected, originalLine, relocationWindow);
 		if (relocated !== undefined) {
 			ref.line = relocated;
 			relocationNotes.add(
-				`Auto-relocated anchor ${originalLine}:${ref.hash} -> ${relocated}:${ref.hash} (window ±${HASH_RELOCATION_WINDOW}).`,
+				`Auto-relocated anchor ${originalLine}:${ref.hash} -> ${relocated}:${ref.hash} (window ±${relocationWindow}).`,
 			);
 			return true;
+		}
+		// Fuzzy content-based recovery: if anchor includes content after pipe,
+		// look for a nearby line with high token similarity
+		if (ref.content) {
+			const FUZZY_THRESHOLD = 0.8;
+			const FUZZY_SCAN = 50;
+			const scanStart = Math.max(0, originalLine - 1 - FUZZY_SCAN);
+			const scanEnd = Math.min(fileLines.length, originalLine - 1 + FUZZY_SCAN + 1);
+			const fuzzyHits: { line: number; score: number }[] = [];
+			for (let i = scanStart; i < scanEnd; i++) {
+				const lineContent = fileLines[i];
+				if (!lineContent.trim()) continue;
+				const score = tokenSimilarity(ref.content, lineContent);
+				if (score > FUZZY_THRESHOLD) {
+					fuzzyHits.push({ line: i + 1, score });
+				}
+			}
+			if (fuzzyHits.length === 1) {
+				const hit = fuzzyHits[0];
+				const newHash = computeLineHash(hit.line, fileLines[hit.line - 1]);
+				ref.line = hit.line;
+				ref.hash = newHash;
+				relocationNotes.add(
+					`Fuzzy-relocated anchor ${originalLine}:${expected} \u2192 ${hit.line}:${newHash} (similarity: ${hit.score.toFixed(2)})`,
+				);
+				return true;
+			}
 		}
 		mismatches.push({ line: originalLine, expected: ref.hash, actual, expectedContent: ref.content });
 		return false;
@@ -477,7 +507,7 @@ export function applyHashlineEdits(
 			}
 		}
 	}
-	if (mismatches.length) throw new Error(formatMismatchError(mismatches, fileLines));
+	if (mismatches.length) throw new Error(formatMismatchError(mismatches, fileLines, relocationWindow));
 
 	// Recompute after potential relocation
 	explicitlyTouchedLines = collectExplicitlyTouchedLines();

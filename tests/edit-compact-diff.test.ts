@@ -11,7 +11,7 @@ describe("edit compact diffs", () => {
 		const oldContent = "line one\nline two\nline three";
 		const newContent = "line one\nline TWO\nline three";
 		const result = generateCompactOrFullDiff(oldContent, newContent);
-		expect(result.diff).toMatch(/^\d+:[0-9a-f]{2}\|line two → \d+:[0-9a-f]{2}\|line TWO$/);
+		expect(result.diff).toMatch(/^\d+:[0-9a-f]{3}\|line two → \d+:[0-9a-f]{3}\|line TWO$/);
 		expect(result.firstChangedLine).toBe(2);
 	});
 
@@ -19,7 +19,7 @@ describe("edit compact diffs", () => {
 		const oldContent = "line one\nline two\nline three";
 		const newContent = "line one\nline three";
 		const result = generateCompactOrFullDiff(oldContent, newContent);
-		expect(result.diff).toMatch(/^\d+:[0-9a-f]{2}\|line two → \[deleted\]$/);
+		expect(result.diff).toMatch(/^\d+:[0-9a-f]{3}\|line two → \[deleted\]$/);
 		expect(result.firstChangedLine).toBe(2);
 	});
 
@@ -27,7 +27,7 @@ describe("edit compact diffs", () => {
 		const oldContent = "aaa\nbbb\nccc";
 		const newContent = "aaa\nBBB\nccc";
 		const result = generateCompactOrFullDiff(oldContent, newContent);
-		expect(result.diff).toMatch(/2:[0-9a-f]{2}\|bbb → 2:[0-9a-f]{2}\|BBB/);
+		expect(result.diff).toMatch(/2:[0-9a-f]{3}\|bbb → 2:[0-9a-f]{3}\|BBB/);
 	});
 
 	it("multi-line change preserves full unified diff format", () => {

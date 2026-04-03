@@ -48,7 +48,7 @@ describe("read map on demand", () => {
 		});
 		const text = result.content[0].text;
 		// Should have hashlines
-		expect(text).toMatch(/^\d+:[0-9a-f]{2}\|/m);
+		expect(text).toMatch(/^\d+:[0-9a-f]{3}\|/m);
 		// Should NOT have truncation message (file is small)
 		expect(text).not.toContain("[Output truncated:");
 		// Should have structural map appended
@@ -81,9 +81,9 @@ describe("read map on demand", () => {
 		});
 		const text = result.content[0].text;
 		// Should have hashlines starting at line 1
-		expect(text).toMatch(/^1:[0-9a-f]{2}\|/m);
+		expect(text).toMatch(/^1:[0-9a-f]{3}\|/m);
 		// Should have only 5 hashlined content lines (offset=1, limit=5)
-		const hashlineRows = text.split("\n").filter((l: string) => /^\d+:[0-9a-f]{2}\|/.test(l));
+		const hashlineRows = text.split("\n").filter((l: string) => /^\d+:[0-9a-f]{3}\|/.test(l));
 		expect(hashlineRows.length).toBe(5);
 		// Should still have the structural map appended
 		expect(text).toContain("File Map:");
@@ -97,7 +97,7 @@ describe("read map on demand", () => {
 		});
 		const text = result.content[0].text;
 		// Should have hashlines
-		expect(text).toMatch(/^\d+:[0-9a-f]{2}\|/m);
+		expect(text).toMatch(/^\d+:[0-9a-f]{3}\|/m);
 		// Should NOT have a map (plain.txt is unmappable)
 		expect(text).not.toContain("File Map:");
 		// Should NOT be an error
@@ -110,7 +110,7 @@ describe("read map on demand", () => {
 		});
 		const text = result.content[0].text;
 		// Should have hashlines
-		expect(text).toMatch(/^\d+:[0-9a-f]{2}\|/m);
+		expect(text).toMatch(/^\d+:[0-9a-f]{3}\|/m);
 		// Should NOT have structural map (file is small, map not requested)
 		expect(text).not.toContain("File Map:");
 	});
@@ -121,7 +121,7 @@ describe("read map on demand", () => {
 			map: false,
 		});
 		const text = result.content[0].text;
-		expect(text).toMatch(/^\d+:[0-9a-f]{2}\|/m);
+		expect(text).toMatch(/^\d+:[0-9a-f]{3}\|/m);
 		expect(text).not.toContain("File Map:");
 	});
 });

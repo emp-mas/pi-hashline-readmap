@@ -78,7 +78,7 @@ describe("grep truncation indicator", () => {
 		// Truncation indicator also appears
 		expect(output).toContain("[Results truncated at 5 matches — refine pattern or increase limit]");
 		// No hashline anchors in summary mode
-		expect(output).not.toMatch(/\d+:[0-9a-f]{2}\|/);
+		expect(output).not.toMatch(/\d+:[0-9a-f]{3}\|/);
 	});
 });
 

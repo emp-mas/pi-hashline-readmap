@@ -18,6 +18,8 @@ import { sqlMapper } from "./mappers/sql.js";
 import { tomlMapper } from "./mappers/toml.js";
 import { typescriptMapper } from "./mappers/typescript.js";
 import { yamlMapper } from "./mappers/yaml.js";
+import { swiftMapper } from "./mappers/swift.js";
+import { shellMapper } from "./mappers/shell.js";
 
 type MapperFn = (
   filePath: string,
@@ -61,6 +63,12 @@ const MAPPERS: Record<string, MapperFn> = {
 
   // Phase 5: Clojure tree-sitter
   clojure: clojureMapper,
+
+  // Phase 6: Swift regex mapper
+  swift: swiftMapper,
+
+  // Phase 7: Shell/Bash regex mapper
+  shell: shellMapper,
 };
 
 /**

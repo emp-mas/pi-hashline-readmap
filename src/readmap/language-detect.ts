@@ -26,6 +26,14 @@ const EXTENSION_MAP: Record<string, LanguageInfo> = {
   // Go
   ".go": { id: "go", name: "Go" },
 
+  // Swift
+  ".swift": { id: "swift", name: "Swift" },
+
+  // Shell/Bash
+  ".sh": { id: "shell", name: "Shell" },
+  ".bash": { id: "shell", name: "Shell" },
+  ".zsh": { id: "shell", name: "Shell" },
+
   // Rust
   ".rs": { id: "rust", name: "Rust" },
 

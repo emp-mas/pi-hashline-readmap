@@ -27,7 +27,7 @@ function text(result: any): string {
 function parseAnchors(block: string): Array<{ line: number; hash: string; anchor: string; content: string }> {
   const out: Array<{ line: number; hash: string; anchor: string; content: string }> = [];
   for (const line of block.split("\n")) {
-    const m = line.match(/^>>(\d+):([0-9a-f]{2})\|(.*)$/);
+    const m = line.match(/^>>(\d+):([0-9a-f]{3})\|(.*)$/);
     if (!m) continue;
     out.push({
       line: Number(m[1]),

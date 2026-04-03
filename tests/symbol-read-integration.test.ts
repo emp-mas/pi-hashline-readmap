@@ -49,7 +49,7 @@ function getTextContent(result: any): string {
 function parseHashlineRows(text: string): HashlineRow[] {
   const rows: HashlineRow[] = [];
   for (const line of text.split("\n")) {
-    const match = line.match(/^(\d+):([0-9a-f]{2})\|(.*)$/);
+    const match = line.match(/^(\d+):([0-9a-f]{3})\|(.*)$/);
     if (!match) continue;
     rows.push({ line: Number(match[1]), hash: match[2], anchor: `${match[1]}:${match[2]}`, content: match[3] });
   }
@@ -208,7 +208,7 @@ describe("symbol read integration", () => {
     expect(text).toContain("process (function)");
     expect(text).toContain("lines 1-10");
     expect(text).toContain("lines 20-30");
-    expect(text).not.toMatch(/^\d+:[0-9a-f]{2}\|/m);
+    expect(text).not.toMatch(/^\d+:[0-9a-f]{3}\|/m);
   });
 
 	it("prepends not-found warning and then returns normal hashlines", async () => {

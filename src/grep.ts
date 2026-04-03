@@ -3,6 +3,7 @@ import { createGrepTool } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { readFile as fsReadFile, stat as fsStat } from "fs/promises";
 import path from "path";
+import { readFileSync } from "node:fs";
 import { normalizeToLF, stripBom, hasBareCarriageReturn } from "./edit-diff";
 import { looksLikeBinary } from "./binary-detect";
 import { ensureHashInit, formatHashlineDisplay } from "./hashline";
@@ -15,8 +16,8 @@ import { throwIfAborted } from "./runtime";
 import { Text } from "@mariozechner/pi-tui";
 import { formatGrepCallText, formatGrepResultText } from "./grep-render-helpers.js";
 
-const GREP_DESC =
-	"Search file contents for a pattern. Returns matching lines with LINE:HASH anchors for hashline edit workflows.";
+const GREP_PROMPT = readFileSync(new URL("../prompts/grep.md", import.meta.url), "utf-8").trim();
+const GREP_DESC = GREP_PROMPT.split(/\n\s*\n/, 1)[0]?.trim() ?? GREP_PROMPT;
 
 const grepSchema = Type.Object({
 	pattern: Type.String({ description: "Search pattern (regex or literal string)" }),
@@ -256,7 +257,7 @@ function escapeForRegex(s: string): string {
 	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function registerGrepTool(pi: ExtensionAPI) {
+export function registerGrepTool(pi: ExtensionAPI, options?: { astSearchGuideline?: string }) {
 	const ptc = {
 		callable: true,
 		enabled: true,
@@ -272,6 +273,7 @@ export function registerGrepTool(pi: ExtensionAPI) {
 		description: GREP_DESC,
 		parameters: grepSchema,
 		ptc,
+		promptGuidelines: options?.astSearchGuideline ? [options.astSearchGuideline] : undefined,
 		async execute(toolCallId, params, signal, onUpdate, ctx) {
 			await ensureHashInit();
 			const p = params as GrepParams;

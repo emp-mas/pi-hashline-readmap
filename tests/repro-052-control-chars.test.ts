@@ -147,9 +147,9 @@ describe("Bug #052: control characters in read/grep output", () => {
     const grepText = getTextContent(grepResult);
 
     // Extract anchor for line 2 from read output (format: "2:xx|display text")
-    const readAnchor = readText.match(/^2:[0-9a-f]{2}\|/m)?.[0].replace(/\|$/, "");
+    const readAnchor = readText.match(/^2:[0-9a-f]{3}\|/m)?.[0].replace(/\|$/, "");
     // Extract anchor for line 5 from grep output (format: "path:>>5:xx|display text")
-    const grepAnchor = grepText.match(/>>5:([0-9a-f]{2})\|/m)?.[0].replace(/^>>/, "").replace(/\|$/, "");
+    const grepAnchor = grepText.match(/>>5:([0-9a-f]{3})\|/m)?.[0].replace(/^>>/, "").replace(/\|$/, "");
 
     expect(readAnchor, "read output should contain a LINE:HASH anchor for line 2").toBeTruthy();
     expect(grepAnchor, "grep output should contain a LINE:HASH anchor for line 5").toBeTruthy();

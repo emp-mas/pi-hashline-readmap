@@ -19,7 +19,7 @@ describe("index.ts emits and stashes tool executors (task 2)", () => {
     init(pi as any);
     const stash = (globalThis as any).__hashlineToolExecutors;
     expect(stash).toBeDefined();
-    expect(Object.keys(stash).sort()).toEqual(["ast_search", "edit", "grep", "read"]);
+    expect(Object.keys(stash).sort()).toEqual(["ast_search", "edit", "grep", "read", "write"]);
   });
 
   it("emit channel is exactly 'hashline:tool-executors'", async () => {
