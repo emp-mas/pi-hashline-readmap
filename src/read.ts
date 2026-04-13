@@ -98,6 +98,20 @@ export function registerReadTool(pi: ExtensionAPI, options: ReadToolOptions = {}
 					details: {},
 				};
 			}
+			if (limit.value !== undefined && limit.value < 1) {
+				return {
+					content: [{ type: "text", text: `Invalid limit: expected a positive integer, received ${limit.value}.` }],
+					isError: true,
+					details: {},
+				};
+			}
+			if (offset.value !== undefined && offset.value < 1) {
+				return {
+					content: [{ type: "text", text: `Invalid offset: expected a positive integer, received ${offset.value}.` }],
+					isError: true,
+					details: {},
+				};
+			}
 			const p = {
 				...rawParams,
 				offset: offset.value,
@@ -189,9 +203,9 @@ export function registerReadTool(pi: ExtensionAPI, options: ReadToolOptions = {}
 			const allLines = normalized.split("\n");
 			const total = allLines.length;
 			const structuredWarnings: PtcWarning[] = [];
-			let startLine = p.offset ? Math.max(1, Number(p.offset)) : 1;
-			let endIdx = p.limit ? Math.min(startLine - 1 + Number(p.limit), total) : total;
-			if (p.offset && startLine > total) {
+			let startLine = p.offset !== undefined ? p.offset : 1;
+			let endIdx = p.limit !== undefined ? Math.min(startLine - 1 + p.limit, total) : total;
+			if (p.offset !== undefined && startLine > total) {
 				return {
 					content: [{ type: "text", text: `[offset ${p.offset} is past end of file (${total} lines)]` }],
 					isError: true,

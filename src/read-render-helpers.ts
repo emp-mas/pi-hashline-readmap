@@ -20,7 +20,13 @@ export function formatReadCallText(
   if (typeof args?.offset === "number") {
     const offset = args.offset as number;
     const limit = typeof args?.limit === "number" ? (args.limit as number) : undefined;
+    if (offset < 1) {
+      return { path: rawPath, suffix: undefined };
+    }
     if (limit !== undefined) {
+      if (limit < 1) {
+        return { path: rawPath, suffix: undefined };
+      }
       return { path: rawPath, suffix: `lines ${offset}-${offset + limit - 1}` };
     }
     return { path: rawPath, suffix: `from line ${offset}` };
