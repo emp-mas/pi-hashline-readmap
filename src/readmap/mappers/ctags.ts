@@ -12,6 +12,7 @@ import type { FileMap, FileSymbol } from "../types.js";
 
 import { DetailLevel, SymbolKind } from "../enums.js";
 import { detectLanguage } from "../language-detect.js";
+export const MAPPER_VERSION = 1;
 
 const execAsync = promisify(exec);
 

@@ -5,6 +5,7 @@ import { createInterface } from "node:readline";
 import type { FileMap, FileSymbol } from "../types.js";
 
 import { DetailLevel, SymbolKind } from "../enums.js";
+export const MAPPER_VERSION = 1;
 
 interface JsonlSample {
   lineNumber: number;

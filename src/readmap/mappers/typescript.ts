@@ -8,6 +8,7 @@ import { readFile, stat } from "node:fs/promises";
 import type { FileMap, FileSymbol } from "../types.js";
 
 import { DetailLevel, SymbolKind } from "../enums.js";
+export const MAPPER_VERSION = 1;
 
 // Lazy load ts-morph to avoid startup cost when not needed
 let tsMorphModule: typeof import("ts-morph") | null = null;

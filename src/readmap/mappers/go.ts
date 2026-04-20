@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import type { FileMap, FileSymbol } from "../types.js";
 
 import { DetailLevel, SymbolKind } from "../enums.js";
+export const MAPPER_VERSION = 1;
 
 const execAsync = promisify(exec);
 

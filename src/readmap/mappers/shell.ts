@@ -10,6 +10,7 @@ import { readFile, stat } from "node:fs/promises";
 import type { FileMap, FileSymbol } from "../types.js";
 
 import { DetailLevel, SymbolKind } from "../enums.js";
+export const MAPPER_VERSION = 1;
 
 // function name() { ... } or function name { ... }
 const FUNC_KEYWORD_RE = /^\s*function\s+(\w+)\s*(?:\(\s*\))?\s*(?:\{.*)?$/;

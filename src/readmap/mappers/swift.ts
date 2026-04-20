@@ -9,6 +9,7 @@ import { readFile, stat } from "node:fs/promises";
 import type { FileMap, FileSymbol } from "../types.js";
 
 import { DetailLevel, SymbolKind } from "../enums.js";
+export const MAPPER_VERSION = 1;
 
 const SWIFT_CONTAINER_DECL_RE =
   /^(?:\s*)(?:@\w+\s+)*(?:(?:public|private|internal|open|fileprivate)\s+)?(?:(?:final|static|override|class|mutating|nonmutating)\s+)*(class|struct|enum|protocol|extension|actor)\s+(\w+)/;

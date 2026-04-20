@@ -88,6 +88,7 @@ npm run typecheck
 2. Register it in `src/readmap/mapper.ts`
 3. Update `src/readmap/language-detect.ts`
 4. Add tests in `tests/readmap-mappers-files.test.ts` and any focused integration tests needed
+5. Set `export const MAPPER_VERSION = 1` in the new mapper file. Bump it any time the mapper's output shape changes so the persistent map cache (`src/persistent-map-cache.ts`) invalidates stale entries.
 
 ### New bash compression technique
 
@@ -104,6 +105,7 @@ When changing `read`, `edit`, `grep`, or `ast_search` output:
 2. Update `prompts/` docs if the contract changed
 3. Add/update tests that pin user-visible behavior
 4. Check `README.md` examples if behavior changed materially
+5. If the change affects a mapper's output shape, bump that mapper's `MAPPER_VERSION` in `src/readmap/mappers/<lang>.ts` so the persistent map cache invalidates stale entries.
 
 ## Local-only / ignored state
 

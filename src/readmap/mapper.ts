@@ -2,24 +2,24 @@ import type { FileMap, MapOptions } from "./types.js";
 
 import { THRESHOLDS } from "./constants.js";
 import { detectLanguage } from "./language-detect.js";
-import { cMapper } from "./mappers/c.js";
-import { clojureMapper } from "./mappers/clojure.js";
-import { cppMapper } from "./mappers/cpp.js";
-import { csvMapper } from "./mappers/csv.js";
-import { ctagsMapper } from "./mappers/ctags.js";
-import { fallbackMapper } from "./mappers/fallback.js";
-import { goMapper } from "./mappers/go.js";
-import { jsonMapper } from "./mappers/json.js";
-import { jsonlMapper } from "./mappers/jsonl.js";
-import { markdownMapper } from "./mappers/markdown.js";
-import { pythonMapper } from "./mappers/python.js";
-import { rustMapper } from "./mappers/rust.js";
-import { sqlMapper } from "./mappers/sql.js";
-import { tomlMapper } from "./mappers/toml.js";
-import { typescriptMapper } from "./mappers/typescript.js";
-import { yamlMapper } from "./mappers/yaml.js";
-import { swiftMapper } from "./mappers/swift.js";
-import { shellMapper } from "./mappers/shell.js";
+import { cMapper, MAPPER_VERSION as C_VERSION } from "./mappers/c.js";
+import { clojureMapper, MAPPER_VERSION as CLOJURE_VERSION } from "./mappers/clojure.js";
+import { cppMapper, MAPPER_VERSION as CPP_VERSION } from "./mappers/cpp.js";
+import { csvMapper, MAPPER_VERSION as CSV_VERSION } from "./mappers/csv.js";
+import { ctagsMapper, MAPPER_VERSION as CTAGS_VERSION } from "./mappers/ctags.js";
+import { fallbackMapper, MAPPER_VERSION as FALLBACK_VERSION } from "./mappers/fallback.js";
+import { goMapper, MAPPER_VERSION as GO_VERSION } from "./mappers/go.js";
+import { jsonMapper, MAPPER_VERSION as JSON_VERSION } from "./mappers/json.js";
+import { jsonlMapper, MAPPER_VERSION as JSONL_VERSION } from "./mappers/jsonl.js";
+import { markdownMapper, MAPPER_VERSION as MARKDOWN_VERSION } from "./mappers/markdown.js";
+import { pythonMapper, MAPPER_VERSION as PYTHON_VERSION } from "./mappers/python.js";
+import { rustMapper, MAPPER_VERSION as RUST_VERSION } from "./mappers/rust.js";
+import { shellMapper, MAPPER_VERSION as SHELL_VERSION } from "./mappers/shell.js";
+import { sqlMapper, MAPPER_VERSION as SQL_VERSION } from "./mappers/sql.js";
+import { swiftMapper, MAPPER_VERSION as SWIFT_VERSION } from "./mappers/swift.js";
+import { tomlMapper, MAPPER_VERSION as TOML_VERSION } from "./mappers/toml.js";
+import { typescriptMapper, MAPPER_VERSION as TYPESCRIPT_VERSION } from "./mappers/typescript.js";
+import { yamlMapper, MAPPER_VERSION as YAML_VERSION } from "./mappers/yaml.js";
 
 type MapperFn = (
   filePath: string,
@@ -31,89 +31,98 @@ type MapperFn = (
  *
  * Uses internal tree-sitter/ts-morph mappers for all supported languages.
  */
-const MAPPERS: Record<string, MapperFn> = {
+interface MapperEntry {
+  fn: MapperFn;
+  version: number;
+}
+
+const MAPPERS_V: Record<string, MapperEntry> = {
   // Phase 1: Python AST-based
-  python: pythonMapper,
-
+  python: { fn: pythonMapper, version: PYTHON_VERSION },
   // Phase 2: Go AST-based
-  go: goMapper,
-
+  go: { fn: goMapper, version: GO_VERSION },
   // Phase 3: Internal ts-morph mappers
-  typescript: typescriptMapper,
-  javascript: typescriptMapper,
-
+  typescript: { fn: typescriptMapper, version: TYPESCRIPT_VERSION },
+  javascript: { fn: typescriptMapper, version: TYPESCRIPT_VERSION },
   // Phase 3: Internal regex-based markdown
-  markdown: markdownMapper,
-
+  markdown: { fn: markdownMapper, version: MARKDOWN_VERSION },
   // Phase 3: Internal tree-sitter mappers
-  rust: rustMapper,
-  cpp: cppMapper,
-  "c-header": cppMapper, // .h files
-
+  rust: { fn: rustMapper, version: RUST_VERSION },
+  cpp: { fn: cppMapper, version: CPP_VERSION },
+  "c-header": { fn: cppMapper, version: CPP_VERSION }, // .h files
   // Phase 2: Regex/subprocess mappers
-  sql: sqlMapper,
-  json: jsonMapper,
-  jsonl: jsonlMapper,
-  c: cMapper, // .c files use regex
-
+  sql: { fn: sqlMapper, version: SQL_VERSION },
+  json: { fn: jsonMapper, version: JSON_VERSION },
+  jsonl: { fn: jsonlMapper, version: JSONL_VERSION },
+  c: { fn: cMapper, version: C_VERSION }, // .c files use regex
   // Phase 4: Extended coverage
-  yaml: yamlMapper,
-  toml: tomlMapper,
-  csv: csvMapper,
-
+  yaml: { fn: yamlMapper, version: YAML_VERSION },
+  toml: { fn: tomlMapper, version: TOML_VERSION },
+  csv: { fn: csvMapper, version: CSV_VERSION },
   // Phase 5: Clojure tree-sitter
-  clojure: clojureMapper,
-
+  clojure: { fn: clojureMapper, version: CLOJURE_VERSION },
   // Phase 6: Swift regex mapper
-  swift: swiftMapper,
-
+  swift: { fn: swiftMapper, version: SWIFT_VERSION },
   // Phase 7: Shell/Bash regex mapper
-  shell: shellMapper,
+  shell: { fn: shellMapper, version: SHELL_VERSION },
 };
 
+export const ALL_MAPPER_IDENTITIES: Record<string, MapperIdentity> = Object.fromEntries([
+  ...Object.entries(MAPPERS_V).map(
+    ([id, entry]) => [id, { mapperName: id, mapperVersion: entry.version }] as const,
+  ),
+  ["ctags", { mapperName: "ctags", mapperVersion: CTAGS_VERSION }],
+  ["fallback", { mapperName: "fallback", mapperVersion: FALLBACK_VERSION }],
+]);
+
+export interface MapperIdentity {
+  mapperName: string;
+  mapperVersion: number;
+}
+
+export interface MapResultWithIdentity extends MapperIdentity {
+  map: FileMap | null;
+}
+
 /**
- * Generate a structural map for a file.
+ * Generate a structural map for a file with mapper identity metadata.
  *
  * Dispatches to the appropriate language-specific mapper,
  * falling back to ctags (if available) then grep-based extraction.
+ */
+export async function generateMapWithIdentity(
+  filePath: string,
+  options: MapOptions = {}
+): Promise<MapResultWithIdentity> {
+  const { signal } = options;
+  const langInfo = detectLanguage(filePath);
+  if (langInfo) {
+    const entry = MAPPERS_V[langInfo.id];
+    if (entry) {
+      const result = await entry.fn(filePath, signal);
+      if (result) {
+        return { map: result, mapperName: langInfo.id, mapperVersion: entry.version };
+      }
+    }
+  }
+
+  const ctagsResult = await ctagsMapper(filePath, signal);
+  if (ctagsResult) {
+    return { map: ctagsResult, mapperName: "ctags", mapperVersion: CTAGS_VERSION };
+  }
+
+  const fbResult = await fallbackMapper(filePath, signal);
+  return { map: fbResult, mapperName: "fallback", mapperVersion: FALLBACK_VERSION };
+}
+
+/**
+ * Generate a structural map for a file.
  */
 export async function generateMap(
   filePath: string,
   options: MapOptions = {}
 ): Promise<FileMap | null> {
-  const { signal } = options;
-
-  // Detect language
-  const langInfo = detectLanguage(filePath);
-
-  if (!langInfo) {
-    // Unknown language, try ctags then fallback
-    const ctagsResult = await ctagsMapper(filePath, signal);
-    if (ctagsResult) {
-      return ctagsResult;
-    }
-    return fallbackMapper(filePath, signal);
-  }
-
-  // Try language-specific mapper
-  const mapper = MAPPERS[langInfo.id];
-
-  if (mapper) {
-    const result = await mapper(filePath, signal);
-    if (result) {
-      return result;
-    }
-    // Mapper failed, fall through to ctags/fallback
-  }
-
-  // Try ctags as intermediate fallback (better than grep when available)
-  const ctagsResult = await ctagsMapper(filePath, signal);
-  if (ctagsResult) {
-    return ctagsResult;
-  }
-
-  // Use grep-based fallback mapper
-  return fallbackMapper(filePath, signal);
+  return (await generateMapWithIdentity(filePath, options)).map;
 }
 
 /**

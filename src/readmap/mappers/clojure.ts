@@ -11,6 +11,7 @@ import { createRequire } from "node:module";
 import type { FileMap, FileSymbol } from "../types.js";
 
 import { DetailLevel, SymbolKind } from "../enums.js";
+export const MAPPER_VERSION = 1;
 
 type SyntaxNode = import("tree-sitter").SyntaxNode;
 
