@@ -10,9 +10,28 @@ import * as buildTools from "./build-tools.ts";
 import * as transfer from "./transfer.ts";
 import { getBashAntiPatternHint } from "./bash-anti-pattern-hints.ts";
 
+export interface CompressionInfo {
+  originalBytes: number;
+  outputBytes: number;
+  compressionRatio: number;
+  technique:
+    | "test-output"
+    | "git"
+    | "linter"
+    | "build-tools"
+    | "build"
+    | "package-manager"
+    | "docker"
+    | "file-listing"
+    | "http-client"
+    | "transfer"
+    | "none";
+  bypassedBy?: "env-var";
+}
 export interface FilterResult {
   output: string;
   savedChars: number;
+  info: CompressionInfo;
 }
 
 export function isTestCommand(command: string): boolean {
@@ -37,53 +56,91 @@ export function isLinterCommand(command: string): boolean {
   return ["eslint", "prettier --check", "tsc --noemit"].some((t) => c.includes(t));
 }
 
+function makeInfo(
+  original: string,
+  final: string,
+  technique: CompressionInfo["technique"],
+  extra: Partial<Pick<CompressionInfo, "bypassedBy">> = {},
+): CompressionInfo {
+  const originalBytes = Buffer.byteLength(original, "utf8");
+  const outputBytes = Buffer.byteLength(final, "utf8");
+  const compressionRatio = originalBytes === 0 ? 1 : outputBytes / originalBytes;
+  return { originalBytes, outputBytes, compressionRatio, technique, ...extra };
+}
+
 export function filterBashOutput(command: string, output: string): FilterResult {
   if (output === "") {
-    return { output: "", savedChars: 0 };
+    return { output: "", savedChars: 0, info: makeInfo("", "", "none") };
   }
 
   const stripped = stripAnsi(output);
-
-  if (isTestCommand(command)) {
-    return { output: stripped, savedChars: output.length - stripped.length };
+  const bypassed = /\bPI_RTK_BYPASS=1\b/.test(command);
+  if (bypassed) {
+    let result = stripped;
+    const antiPatternHint = getBashAntiPatternHint(command);
+    if (antiPatternHint) {
+      result = result ? `${result}\n\n${antiPatternHint}` : antiPatternHint;
+    }
+    return {
+      output: result,
+      savedChars: output.length - result.length,
+      info: makeInfo(output, result, "none", { bypassedBy: "env-var" }),
+    };
   }
-
+  if (isTestCommand(command)) {
+    return {
+      output: stripped,
+      savedChars: output.length - stripped.length,
+      info: makeInfo(output, stripped, "test-output"),
+    };
+  }
   let result = stripped;
+  let technique: CompressionInfo["technique"] = "none";
   try {
-    const routes: Array<{ matches: boolean; apply: () => string | null }> = [
-      { matches: isGitCommand(command), apply: () => git.compactGitOutput(stripped, command) },
-      { matches: isLinterCommand(command), apply: () => linter.aggregateLinterOutput(stripped, command) },
-      { matches: buildTools.isBuildToolsCommand(command), apply: () => buildTools.compressBuildToolsOutput(stripped) },
-      { matches: isBuildCommand(command), apply: () => build.filterBuildOutput(stripped, command) },
-      { matches: packageManager.isPackageManagerCommand(command), apply: () => packageManager.compressPackageManagerOutput(stripped) },
-      { matches: docker.isDockerCommand(command), apply: () => docker.compressDockerOutput(stripped) },
-      { matches: fileListing.isFileListingCommand(command), apply: () => fileListing.compressFileListingOutput(stripped) },
-      { matches: httpClient.isHttpCommand(command), apply: () => httpClient.compressHttpOutput(stripped) },
-      { matches: transfer.isTransferCommand(command), apply: () => transfer.compressTransferOutput(stripped) },
+    const routes: Array<{ matches: boolean; technique: CompressionInfo["technique"]; apply: () => string | null }> = [
+      { matches: isGitCommand(command), technique: "git", apply: () => git.compactGitOutput(stripped, command) },
+      { matches: isLinterCommand(command), technique: "linter", apply: () => linter.aggregateLinterOutput(stripped, command) },
+      {
+        matches: buildTools.isBuildToolsCommand(command),
+        technique: "build-tools",
+        apply: () => buildTools.compressBuildToolsOutput(stripped),
+      },
+      { matches: isBuildCommand(command), technique: "build", apply: () => build.filterBuildOutput(stripped, command) },
+      {
+        matches: packageManager.isPackageManagerCommand(command),
+        technique: "package-manager",
+        apply: () => packageManager.compressPackageManagerOutput(stripped),
+      },
+      { matches: docker.isDockerCommand(command), technique: "docker", apply: () => docker.compressDockerOutput(stripped) },
+      {
+        matches: fileListing.isFileListingCommand(command),
+        technique: "file-listing",
+        apply: () => fileListing.compressFileListingOutput(stripped),
+      },
+      { matches: httpClient.isHttpCommand(command), technique: "http-client", apply: () => httpClient.compressHttpOutput(stripped) },
+      { matches: transfer.isTransferCommand(command), technique: "transfer", apply: () => transfer.compressTransferOutput(stripped) },
     ];
-
     for (const route of routes) {
-      if (!route.matches) {
-        continue;
-      }
-
+      if (!route.matches) continue;
+      technique = route.technique;
       const next = route.apply();
       if (next !== null) {
         result = next;
         break;
       }
+      technique = "none";
     }
   } catch {
     result = stripped;
+    technique = "none";
   }
-
   const antiPatternHint = getBashAntiPatternHint(command);
   if (antiPatternHint) {
     result = result ? `${result}\n\n${antiPatternHint}` : antiPatternHint;
   }
-
   return {
     output: result,
     savedChars: output.length - result.length,
+    info: makeInfo(output, result, technique),
   };
 }

@@ -41,7 +41,16 @@ describe("command detection", () => {
 
 describe("filterBashOutput core behavior", () => {
   it("returns empty output and zero savings for empty output", () => {
-    expect(filterBashOutput("echo hello", "")).toEqual({ output: "", savedChars: 0 });
+    expect(filterBashOutput("echo hello", "")).toEqual({
+      output: "",
+      savedChars: 0,
+      info: {
+        originalBytes: 0,
+        outputBytes: 0,
+        compressionRatio: 1,
+        technique: "none",
+      },
+    });
   });
 
   it("returns ANSI-stripped output unchanged for unknown commands", () => {

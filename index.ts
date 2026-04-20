@@ -41,6 +41,30 @@ export type {
 
 const BASH_FILTER_ENABLED = true;
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
+function buildRtkNotice(
+  info: {
+    originalBytes: number;
+    outputBytes: number;
+    compressionRatio: number;
+    technique: string;
+    bypassedBy?: string;
+  },
+  command: string,
+  outputIsEmpty: boolean,
+): string | null {
+  if (info.bypassedBy !== undefined) return null;
+  if (outputIsEmpty) return null;
+  if (info.originalBytes <= 2000) return null;
+  if (info.compressionRatio >= 0.5) return null;
+  const pct = Math.round((1 - info.compressionRatio) * 100);
+  return `[RTK: compressed ${info.technique} output ${formatBytes(info.originalBytes)} → ${formatBytes(info.outputBytes)} (${pct}% saved). Use \`PI_RTK_BYPASS=1 ${command}\` to see full output.]`;
+}
+
 export default function piHashlineReadmapExtension(pi: ExtensionAPI): void {
   const readTurns = new Map<string, number>();
   let currentTurn = 0;
@@ -135,12 +159,17 @@ export default function piHashlineReadmapExtension(pi: ExtensionAPI): void {
       if (text === originalText) return undefined;
       return { content: [{ type: "text" as const, text }] };
     }
-    const { output, savedChars } = filterBashOutput(command, originalText);
+    const { output, savedChars, info } = filterBashOutput(command, originalText);
     if (process.env.PI_RTK_SAVINGS === "1") {
       process.stderr.write(`[RTK] Saved ${savedChars} chars (${command})\n`);
     }
+    const notice = buildRtkNotice(info, command, output === "");
+    const body = notice ? `${notice}\n${output}` : output;
+    const existingDetails =
+      event.details && typeof event.details === "object" ? (event.details as Record<string, unknown>) : {};
     return {
-      content: [{ type: "text" as const, text: applyWarning(output) }],
+      content: [{ type: "text" as const, text: applyWarning(body) }],
+      details: { ...existingDetails, compressionInfo: info }
     };
   });
 }

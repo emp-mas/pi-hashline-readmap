@@ -135,6 +135,17 @@ Specialized compressors currently cover:
 
 ANSI escape stripping runs on all bash output regardless.
 
+### Escape hatch: `PI_RTK_BYPASS=1`
+Compression helps, but can occasionally hide information the agent needs (unusual test runner output, custom loggers, etc.). Prefix the bash command with `PI_RTK_BYPASS=1` to disable all compression for that invocation — ANSI is still stripped, anti-pattern hints are still appended, but no route-specific compressor runs:
+
+```bash
+PI_RTK_BYPASS=1 npm test
+PI_RTK_BYPASS=1 git log --stat
+```
+
+The bypass is matched as the literal token `PI_RTK_BYPASS=1` with word boundaries on both sides, so it must appear as a standalone env assignment (not embedded in another variable name). The env variable itself is harmless if the target command ignores it.
+When compression dropped more than half of a ≥2 KB bash output, the extension prepends a one-line notice reminding you of the bypass and showing how many bytes were saved. The notice is suppressed on bypass and on small outputs.
+
 ## `nu`
 When [Nushell](https://www.nushell.sh/) is installed, the extension registers a `nu` tool for structured exploration — file inspection, data wrangling, and system queries via Nushell pipelines.
 
