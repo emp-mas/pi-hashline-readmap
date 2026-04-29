@@ -9,6 +9,7 @@ import { registerLsTool } from "./src/ls.js";
 import { registerFindTool } from "./src/find.js";
 import { filterBashOutput } from "./src/rtk/bash-filter.js";
 import { stripAnsi } from "./src/rtk/ansi.js";
+import { applyContextHygieneStaleContext } from "./src/context-application.js";
 import {
   buildCommandResource,
   buildContextHygieneMetadata,
@@ -157,6 +158,16 @@ export default function piHashlineReadmapExtension(pi: ExtensionAPI): void {
       (event.input ?? {}) as Record<string, unknown>,
     );
     return undefined;
+  });
+
+  pi.on("context", (event: any): any => {
+    if (!Array.isArray(event.messages)) return undefined;
+    const messages = applyContextHygieneStaleContext(
+      event.messages,
+      getContextHygieneTracker().generateReport(),
+    );
+    if (messages === event.messages) return undefined;
+    return { messages };
   });
 
   pi.on("tool_result", (event: any) => {

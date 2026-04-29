@@ -351,9 +351,34 @@ Policy summary:
 - `edit` is not safe-by-default and is mutating
 - `pi-prompt-assembler` may optionally consume this contract
 
-## Context hygiene metadata
+## Context hygiene metadata and stale context
 
-Tool results include additive `details.contextHygiene` metadata that classifies context as read, search, command output, or mutation context. This metadata is intended for downstream session/context-management integrations and does not change the visible tool output contract.
+Tool results include additive `details.contextHygiene` metadata that classifies context as read, search, command output, or mutation context. This metadata is intended for downstream session/context-management integrations and does not change the visible current-turn tool output contract.
+
+When an `edit` or `write` mutates a file, older provider-context copies of `read`, `grep`, and `ast_search` results that touched the same `file:<path>` are marked stale before the next model call. Stale context is not deleted for token savings and is not treated as retired context; it is deterministic warning context that says the previous result is no longer trustworthy because file content changed after it was produced.
+
+What becomes stale:
+
+- earlier `read` results for the same mutated file
+- earlier `grep` results that touched the same mutated file
+- earlier `ast_search` results that touched the same mutated file
+- multi-file search artifacts when any touched file is later mutated; the stale record names the mutated `file:<path>` key that caused the stale status
+
+What does not become stale in Phase 1:
+
+- the latest `edit` or `write` mutation result
+- fresh `read`, `grep`, or `ast_search` results recorded after the mutation
+- results for unrelated files
+- Bash output such as old `git status`, `git diff`, or test logs
+- pressure-based retirement candidates
+
+To recover stale detail, re-run the original tool indicated by the placeholder: `read` for stale file reads, `grep` for stale text search results, or `ast_search` for stale structural search results. The current stale placeholders are deterministic:
+
+```text
+[Stale read context: file content changed after this result. Re-run read to refresh.]
+[Stale grep context: matched file content changed after this result. Re-run grep to refresh.]
+[Stale ast_search context: matched file content changed after this result. Re-run ast_search to refresh.]
+```
 
 When `PI_CONTEXT_HYGIENE_DEBUG=1` is set before starting pi, the extension also registers `context_hygiene_report`, a debug-only read-only tool that reports tracked context-hygiene resources, stale candidates, and retirement candidates without mutating tracker state.
 
