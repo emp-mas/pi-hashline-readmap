@@ -8,6 +8,7 @@ import { registerWriteTool } from "./src/write.js";
 import { registerLsTool } from "./src/ls.js";
 import { registerFindTool } from "./src/find.js";
 import { filterBashOutput } from "./src/rtk/bash-filter.js";
+import { selectBashOriginalOutput } from "./src/rtk/bash-original-output.js";
 import { stripAnsi } from "./src/rtk/ansi.js";
 import { applyContextHygieneStaleContext } from "./src/context-application.js";
 import {
@@ -170,7 +171,7 @@ export default function piHashlineReadmapExtension(pi: ExtensionAPI): void {
     return { messages };
   });
 
-  pi.on("tool_result", (event: any) => {
+  (pi as any).on("tool_result", (event: any) => {
     const doomLoop = consumeDoomLoopWarning(doomLoopState, event.toolCallId);
     if (!isBashToolResult(event)) {
       const contextHygiene = contextHygieneFromDetails(event.details);
@@ -207,6 +208,19 @@ export default function piHashlineReadmapExtension(pi: ExtensionAPI): void {
           .join("\n")
       : "";
 
+    const nonTextContent = Array.isArray(event.content)
+      ? (event.content as Array<{ type?: unknown; text?: unknown }>).filter(
+          (c) => !(c.type === "text" && typeof c.text === "string"),
+        )
+      : [];
+
+    const existingDetails =
+      event.details && typeof event.details === "object" ? (event.details as Record<string, unknown>) : {};
+    const originalSelection = selectBashOriginalOutput({
+      visibleText: originalText,
+      fullOutputPath: existingDetails.fullOutputPath,
+    });
+
     const command =
       event.input && typeof event.input === "object" && typeof (event.input as { command?: unknown }).command === "string"
         ? (event.input as { command: string }).command
@@ -226,21 +240,29 @@ export default function piHashlineReadmapExtension(pi: ExtensionAPI): void {
       const stripped = stripAnsi(originalText);
       const text = applyWarning(stripped);
       if (text === originalText) return undefined;
-      const existingDetails =
-        event.details && typeof event.details === "object" ? (event.details as Record<string, unknown>) : {};
-      return { content: [{ type: "text" as const, text }], details: { ...existingDetails, contextHygiene } };
+      return {
+        content: [{ type: "text" as const, text }, ...nonTextContent],
+        details: {
+          ...existingDetails,
+          contextHygiene,
+          ...(originalSelection.metadata ? { bashOriginalOutput: originalSelection.metadata } : {}),
+        },
+      };
     }
-    const { output, savedChars, info } = filterBashOutput(command, originalText);
+    const { output, savedChars, info } = filterBashOutput(command, originalSelection.inputForRtk);
     if (process.env.PI_RTK_SAVINGS === "1") {
       process.stderr.write(`[RTK] Saved ${savedChars} chars (${command})\n`);
     }
     const notice = buildRtkNotice(info, command, output === "");
     const body = notice ? `${notice}\n${output}` : output;
-    const existingDetails =
-      event.details && typeof event.details === "object" ? (event.details as Record<string, unknown>) : {};
     return {
-      content: [{ type: "text" as const, text: applyWarning(body) }],
-      details: { ...existingDetails, compressionInfo: info, contextHygiene },
+      content: [{ type: "text" as const, text: applyWarning(body) }, ...nonTextContent],
+      details: {
+        ...existingDetails,
+        compressionInfo: info,
+        contextHygiene,
+        ...(originalSelection.metadata ? { bashOriginalOutput: originalSelection.metadata } : {}),
+      },
     };
   });
 }
