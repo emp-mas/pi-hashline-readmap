@@ -12,6 +12,7 @@ import { selectBashOriginalOutput } from "./src/rtk/bash-original-output.js";
 import { applyBashContextGuard, resolveBashContextGuardConfig } from "./src/rtk/bash-context-guard.js";
 import { stripAnsi } from "./src/rtk/ansi.js";
 import { applyContextHygieneStaleContext } from "./src/context-application.js";
+import { buildBashCommandState } from "./src/bash-command-state.js";
 import {
   buildCommandResource,
   buildContextHygieneMetadata,
@@ -228,10 +229,18 @@ export default function piHashlineReadmapExtension(pi: ExtensionAPI): void {
       event.input && typeof event.input === "object" && typeof (event.input as { command?: unknown }).command === "string"
         ? (event.input as { command: string }).command
         : "";
+    const commandState = command
+      ? buildBashCommandState({
+          command,
+          isError: event.isError === true,
+          text: originalSelection.inputForRtk || originalText,
+        })
+      : undefined;
     const contextHygiene = buildContextHygieneMetadata({
       tool: "bash",
       classification: "command-output",
       resources: command ? [buildCommandResource(command)] : [],
+      commandState,
     });
     recordContextHygiene(contextHygiene, event.toolCallId);
     const applyWarning = (body: string): string => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import init from "../index.js";
+import { buildBashCommandState } from "../src/bash-command-state.js";
 import {
   buildCommandResource,
   buildContextHygieneMetadata,
@@ -32,6 +33,7 @@ describe("bash contextHygiene metadata", () => {
       tool: "bash",
       classification: "command-output",
       resources: [buildCommandResource(command)],
+      commandState: buildBashCommandState({ command, text: "PASS", isError: false }),
     };
 
     const first = await handlers.tool_result(

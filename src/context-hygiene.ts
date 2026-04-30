@@ -10,6 +10,7 @@
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
+import type { BashCommandState } from "./bash-command-state.js";
 
 export const CONTEXT_HYGIENE_SCHEMA_VERSION = 1 as const;
 export const DEFAULT_CONTEXT_HYGIENE_MAX_EVENTS = 1000;
@@ -104,7 +105,12 @@ export type ContextHygieneRehydrateDescriptor =
   | ContextHygieneGrepRehydrateDescriptor
   | ContextHygieneAstSearchRehydrateDescriptor;
 
-export type ContextHygieneStaleInvalidationReason = "mutation-after-read";
+export type ContextHygieneStaleInvalidationReason =
+  | "mutation-after-read"
+  | "bash-repo-state-after-mutation"
+  | "bash-verification-success-rerun";
+
+export type ContextHygieneRetirementReason = "command-rerun" | "same-command-success-rerun";
 
 export interface ContextHygieneStaleRecord {
   status: "stale";
@@ -116,6 +122,19 @@ export interface ContextHygieneStaleRecord {
   invalidatingMutationResultId?: string;
   reason: ContextHygieneStaleInvalidationReason;
   rehydrate?: ContextHygieneRehydrateDescriptor;
+  command?: string;
+}
+
+export interface ContextHygieneRetiredRecord {
+  status: "retired";
+  originalTool: string;
+  originalEventId?: number;
+  originalResultId?: string;
+  retiredResourceKeys: string[];
+  supersededByEventId: number;
+  supersededByResultId?: string;
+  reason: ContextHygieneRetirementReason;
+  command?: string;
 }
 
 export interface BuildStaleContextRecordInput {
@@ -127,6 +146,7 @@ export interface BuildStaleContextRecordInput {
   invalidatingMutationResultId?: string;
   reason?: ContextHygieneStaleInvalidationReason;
   rehydrate?: ContextHygieneRehydrateDescriptor;
+  command?: string;
 }
 
 export function cloneContextHygieneRehydrateDescriptor(
@@ -142,6 +162,34 @@ export function cloneContextHygieneRehydrateDescriptor(
   }
 }
 
+function cloneBashCommandState(commandState: BashCommandState): BashCommandState {
+  return { ...commandState };
+}
+
+export function buildRetiredContextRecord(input: {
+  originalTool: string;
+  originalEventId?: number;
+  originalResultId?: string;
+  retiredResourceKeys: readonly string[];
+  supersededByEventId: number;
+  supersededByResultId?: string;
+  reason: ContextHygieneRetirementReason;
+  command?: string;
+}): ContextHygieneRetiredRecord {
+  const record: ContextHygieneRetiredRecord = {
+    status: "retired",
+    originalTool: input.originalTool,
+    retiredResourceKeys: sortResourceKeys(new Set(input.retiredResourceKeys)),
+    supersededByEventId: input.supersededByEventId,
+    reason: input.reason,
+  };
+  if (input.originalEventId !== undefined) record.originalEventId = input.originalEventId;
+  if (input.originalResultId) record.originalResultId = input.originalResultId;
+  if (input.supersededByResultId) record.supersededByResultId = input.supersededByResultId;
+  if (input.command) record.command = input.command;
+  return record;
+}
+
 export function buildStaleContextRecord(input: BuildStaleContextRecordInput): ContextHygieneStaleRecord {
   const record: ContextHygieneStaleRecord = {
     status: "stale",
@@ -154,6 +202,7 @@ export function buildStaleContextRecord(input: BuildStaleContextRecordInput): Co
   if (input.originalResultId) record.originalResultId = input.originalResultId;
   if (input.invalidatingMutationResultId) record.invalidatingMutationResultId = input.invalidatingMutationResultId;
   if (input.rehydrate) record.rehydrate = cloneContextHygieneRehydrateDescriptor(input.rehydrate);
+  if (input.command) record.command = input.command;
   return record;
 }
 
@@ -169,6 +218,16 @@ export function renderStaleAstSearchPlaceholder(): string {
   return "[Stale ast_search context: matched file content changed after this result. Re-run ast_search to refresh.]";
 }
 
+export function renderStaleBashPlaceholder(record: ContextHygieneStaleRecord): string {
+  const command = record.command ? ` Command: ${record.command}` : "";
+  return `[Stale bash context: ${record.reason}. Re-run the Bash command to refresh.${command}]`;
+}
+
+export function renderRetiredContextPlaceholder(record: ContextHygieneRetiredRecord): string {
+  const command = record.command ? ` Command: ${record.command}` : "";
+  return `[Retired bash context: ${record.reason}. Superseded by a later successful Bash command.${command}]`;
+}
+
 export function renderStaleContextPlaceholder(record: ContextHygieneStaleRecord): string {
   switch (record.originalTool) {
     case "read":
@@ -177,6 +236,8 @@ export function renderStaleContextPlaceholder(record: ContextHygieneStaleRecord)
       return renderStaleGrepPlaceholder();
     case "ast_search":
       return renderStaleAstSearchPlaceholder();
+    case "bash":
+      return renderStaleBashPlaceholder(record);
     default:
       return "[Stale tool context: resource content changed after this result. Re-run the original tool to refresh.]";
   }
@@ -251,6 +312,7 @@ export interface ContextHygieneMetadata {
   classification: ContextHygieneClassification;
   resources: ContextHygieneResource[];
   rehydrate?: ContextHygieneRehydrateDescriptor;
+  commandState?: BashCommandState;
 }
 
 export interface BuildContextHygieneMetadataInput {
@@ -258,6 +320,7 @@ export interface BuildContextHygieneMetadataInput {
   classification: ContextHygieneClassification;
   resources?: readonly (ContextHygieneResource | null | undefined)[];
   rehydrate?: ContextHygieneRehydrateDescriptor | null;
+  commandState?: BashCommandState | null;
 }
 
 export function normalizePathForContextHygiene(path: string): string {
@@ -391,6 +454,7 @@ export function buildContextHygieneMetadata(
     resources,
   };
   if (input.rehydrate) metadata.rehydrate = cloneContextHygieneRehydrateDescriptor(input.rehydrate);
+  if (input.commandState) metadata.commandState = cloneBashCommandState(input.commandState);
   return metadata;
 }
 
@@ -405,6 +469,7 @@ export interface ContextHygieneEvent {
   classification: ContextHygieneClassification;
   resources: ContextHygieneResource[];
   rehydrate?: ContextHygieneRehydrateDescriptor;
+  commandState?: BashCommandState;
 }
 
 export interface ContextHygieneReuseReportEntry {
@@ -424,7 +489,7 @@ export interface ContextHygieneStaleCandidateReportEntry {
   resourceKey: string;
   staleEventIds: number[];
   mutationEventId: number;
-  reason: "mutation-after-read";
+  reason: ContextHygieneStaleInvalidationReason;
   staleResults: ContextHygieneStaleRecord[];
 }
 
@@ -432,7 +497,8 @@ export interface ContextHygieneRetirementCandidateReportEntry {
   resourceKey: string;
   eventIds: number[];
   supersededByEventId: number;
-  reason: "command-rerun";
+  reason: ContextHygieneRetirementReason;
+  retiredResults?: ContextHygieneRetiredRecord[];
 }
 
 export interface ContextHygieneReport {
@@ -515,6 +581,7 @@ function cloneContextHygieneEvent(event: ContextHygieneEvent): ContextHygieneEve
     resources: event.resources.map((resource) => ({ ...resource } as ContextHygieneResource)),
   };
   if (event.rehydrate) cloned.rehydrate = cloneContextHygieneRehydrateDescriptor(event.rehydrate);
+  if (event.commandState) cloned.commandState = cloneBashCommandState(event.commandState);
   return cloned;
 }
 
@@ -553,6 +620,7 @@ class DefaultContextHygieneTracker implements ContextHygieneTracker {
     };
     if (options.resultId) event.resultId = options.resultId;
     if (metadata.rehydrate) event.rehydrate = cloneContextHygieneRehydrateDescriptor(metadata.rehydrate);
+    if (metadata.commandState) event.commandState = cloneBashCommandState(metadata.commandState);
     this.events.push(event);
     if (this.events.length > this.maxEvents) this.events.splice(0, this.events.length - this.maxEvents);
     return cloneContextHygieneEvent(event);
@@ -636,8 +704,96 @@ class DefaultContextHygieneTracker implements ContextHygieneTracker {
       }
     }
 
+    const bashCommandEvents = this.events.filter(
+      (event) => event.tool === "bash" && event.classification === "command-output" && event.commandState,
+    );
+    const invalidatingRepoEvents = this.events.filter(
+      (event) => event.classification === "mutation" || event.commandState?.stateKind === "git-worktree-mutation",
+    );
+    const commandKeyForEvent = (event: ContextHygieneEvent): string | undefined =>
+      event.resources.find((resource) => resource.kind === "command")?.key;
+
+    for (const event of bashCommandEvents) {
+      const state = event.commandState;
+      if (!state || (state.stateKind !== "repo-status" && state.stateKind !== "repo-diff")) continue;
+      const invalidator = invalidatingRepoEvents.find((candidate) => candidate.id > event.id);
+      const commandKey = commandKeyForEvent(event);
+      if (!invalidator || !commandKey) continue;
+      staleCandidates.push({
+        resourceKey: commandKey,
+        staleEventIds: [event.id],
+        mutationEventId: invalidator.id,
+        reason: "bash-repo-state-after-mutation",
+        staleResults: [buildStaleContextRecord({
+          originalTool: event.tool,
+          originalEventId: event.id,
+          originalResultId: event.resultId,
+          staleResourceKeys: [commandKey],
+          invalidatingMutationEventId: invalidator.id,
+          invalidatingMutationResultId: invalidator.resultId,
+          reason: "bash-repo-state-after-mutation",
+          command: state.normalizedCommand,
+        })],
+      });
+    }
+
+    for (const event of bashCommandEvents) {
+      const state = event.commandState;
+      const commandKey = commandKeyForEvent(event);
+      if (!state || state.stateKind !== "verification" || state.outcome !== "failure" || !commandKey) continue;
+      const success = bashCommandEvents.find((candidate) => {
+        const candidateState = candidate.commandState;
+        return candidate.id > event.id && commandKeyForEvent(candidate) === commandKey && candidateState?.outcome === "success";
+      });
+      if (!success) continue;
+      staleCandidates.push({
+        resourceKey: commandKey,
+        staleEventIds: [event.id],
+        mutationEventId: success.id,
+        reason: "bash-verification-success-rerun",
+        staleResults: [buildStaleContextRecord({
+          originalTool: event.tool,
+          originalEventId: event.id,
+          originalResultId: event.resultId,
+          staleResourceKeys: [commandKey],
+          invalidatingMutationEventId: success.id,
+          invalidatingMutationResultId: success.resultId,
+          reason: "bash-verification-success-rerun",
+          command: state.normalizedCommand,
+        })],
+      });
+    }
+
     for (const resourceKey of sortResourceKeys(commandEventsByResource.keys())) {
-      const commands = commandEventsByResource.get(resourceKey) ?? [];
+      const eligible = (commandEventsByResource.get(resourceKey) ?? []).filter((event) =>
+        event.commandState?.routineRetirementEligible === true && event.commandState.outcome === "success",
+      );
+      if (eligible.length < 2) continue;
+      const latest = eligible[eligible.length - 1];
+      const retired = eligible.slice(0, -1);
+      retirementCandidates.push({
+        resourceKey,
+        eventIds: retired.map((event) => event.id),
+        supersededByEventId: latest.id,
+        reason: "same-command-success-rerun",
+        retiredResults: retired.map((event) => buildRetiredContextRecord({
+          originalTool: event.tool,
+          originalEventId: event.id,
+          originalResultId: event.resultId,
+          retiredResourceKeys: [resourceKey],
+          supersededByEventId: latest.id,
+          supersededByResultId: latest.resultId,
+          reason: "same-command-success-rerun",
+          command: event.commandState?.normalizedCommand,
+        })),
+      });
+    }
+
+    for (const resourceKey of sortResourceKeys(commandEventsByResource.keys())) {
+      const commands = (commandEventsByResource.get(resourceKey) ?? []).filter(
+        (event) => !(event.tool === "bash" && event.commandState),
+      );
+      if (commands.length < 2) continue;
       for (let index = 1; index < commands.length; index += 1) {
         retirementCandidates.push({
           resourceKey,
