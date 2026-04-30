@@ -1,6 +1,6 @@
 {
   "name": "pi-hashline-readmap",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Unified pi extension: hash-anchored read/edit/grep, structural code maps, AST-grep, file exploration (ls/find), and bash output compression",
   "type": "module",
   "exports": {
@@ -61,6 +61,9 @@
   },
   "overrides": {
     "tree-sitter-cpp": {
+      "tree-sitter": "0.22.4"
+    },
+    "tree-sitter-java": {
       "tree-sitter": "0.22.4"
     }
   }
