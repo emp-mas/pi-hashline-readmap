@@ -334,6 +334,13 @@ export default function piHashlineReadmapExtension(pi: ExtensionAPI): void {
       commandState,
     });
     const recordedContextHygieneEvent = recordContextHygiene(contextHygiene, event.toolCallId);
+    if (
+      event.isError !== true &&
+      commandState?.stateKind === "shell-file-mutation" &&
+      (commandState.fileTargets?.length ?? 0) > 0
+    ) {
+      expireStaleReadTurns(getContextHygieneTracker().generateReport());
+    }
     const appliedEffects = summarizeBashAppliedEffects(recordedContextHygieneEvent.id);
     const contextHygieneForDetails: ContextHygieneMetadata = hasAppliedEffects(appliedEffects)
       ? { ...contextHygiene, appliedEffects }
