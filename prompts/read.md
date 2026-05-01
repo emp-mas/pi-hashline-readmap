@@ -8,7 +8,7 @@ When a file is truncated (exceeds {{DEFAULT_MAX_LINES}} lines or {{DEFAULT_MAX_B
 Use the appended map for targeted reads with `offset` and `limit` — e.g., `read(path, { offset: LINE, limit: N })`.
 When provided, `offset` and `limit` must be positive integers; `0` and negative values are invalid.
 
-Maps support 18 mapped language/file kinds — including TypeScript, JavaScript, Python, Rust, Go, C, C headers, C++, Swift, Shell, Clojure, SQL, JSON, JSONL, Markdown, YAML, TOML, and CSV/TSV — and use in-memory caching with optional persistent caching across sessions.
+Maps support 18 mapped language/file kinds — including TypeScript, JavaScript, Python, Rust, Go, Java, C, C headers, C++, Swift, Shell, Clojure, SQL, JSON, JSONL, Markdown, YAML, TOML, and CSV/TSV — and use in-memory caching with optional persistent caching across sessions.
 
 ## Map Parameter
 
