@@ -183,6 +183,50 @@ function bar(n: number) { return n; }
     expect(out).not.toContain("    return 1;");
   });
 
+
+  it("replaces a Java method through in-memory symbol lookup", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "edit-rs-java-"));
+    const fp = join(dir, "Example.java");
+    writeFileSync(fp,
+`class Example {
+  int answer() {
+    return 1;
+  }
+}
+`);
+    const { pi, tools } = makeFakePi();
+    registerEditTool(pi, { wasReadInSession: () => true });
+    const tool = tools[0];
+    const res = await tool.execute("c", {
+      path: fp,
+      edits: [{ replace_symbol: { symbol: "Example.answer", new_body: "int answer() {\n  return 42;\n}" } }],
+    }, undefined, undefined, { cwd: dir });
+    expect(res.isError).toBeFalsy();
+    const out = readFileSync(fp, "utf-8");
+    expect(out).toContain("  int answer() {");
+    expect(out).toContain("    return 42;");
+    expect(out).not.toContain("return 1;");
+  });
+
+
+  it("returns an unsupported-language error for replace_symbol without a precise content mapper", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "edit-rs-unsupported-"));
+    const fp = join(dir, "example.py");
+    const content = "def answer():\n    return 1\n\ndef other():\n    return 2\n";
+    writeFileSync(fp, content);
+    const { pi, tools } = makeFakePi();
+    registerEditTool(pi, { wasReadInSession: () => true });
+    const tool = tools[0];
+    const res = await tool.execute("c", {
+      path: fp,
+      edits: [{ replace_symbol: { symbol: "answer", new_body: "def answer():\n    return 42" } }],
+    }, undefined, undefined, { cwd: dir });
+    expect(res.isError).toBe(true);
+    expect(res.details?.ptcValue?.error?.code).toBe("invalid-edit-variant");
+    expect(res.details?.ptcValue?.error?.message ?? "").toMatch(/unsupported.*Python/i);
+    expect(readFileSync(fp, "utf-8")).toBe(content);
+  });
+
   it("emits name-mismatch warning when new_body declares a different name", async () => {
     const dir = mkdtempSync(join(tmpdir(), "edit-rs-nm-"));
     const fp = join(dir, "x.ts");

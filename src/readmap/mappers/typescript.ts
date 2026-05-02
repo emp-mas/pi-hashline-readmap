@@ -703,6 +703,50 @@ function getLanguageDisplayName(filePath: string): string {
 }
 
 /**
+ * Generate a file map for TypeScript/JavaScript content provided in-memory.
+ * Bypasses all disk I/O; filePath is used only for language display and path identity.
+ */
+export async function typescriptMapperFromContent(
+  filePath: string,
+  content: string,
+  signal?: AbortSignal
+): Promise<FileMap | null> {
+  try {
+    const ts = await loadTsMorph();
+    if (signal?.aborted) return null;
+
+    const totalBytes = Buffer.byteLength(content, "utf8");
+    const proj = getProject(ts);
+    const vpath = `virtual_${virtualCounter++}_${filePath.replaceAll("\\", "/")}`;
+    const sourceFile = proj.createSourceFile(vpath, content, { overwrite: true });
+
+    try {
+      const rawSymbols = extractSymbols(ts, sourceFile);
+      const { exportedNames, defaultNames } = collectExportNames(ts, sourceFile);
+      applyExportFlags(rawSymbols, exportedNames, defaultNames);
+      const symbols = convertSymbols(rawSymbols);
+      const imports = extractImports(sourceFile);
+      const totalLines = content.split("\n").length;
+
+      return {
+        path: filePath,
+        totalLines,
+        totalBytes,
+        language: getLanguageDisplayName(filePath),
+        symbols,
+        imports,
+        detailLevel: DetailLevel.Full,
+      };
+    } finally {
+      proj.removeSourceFile(sourceFile);
+    }
+  } catch (error) {
+    if (signal?.aborted) return null;
+    console.error(`TypeScript content mapper failed: ${error}`);
+    return null;
+  }
+}
+/**
  * Generate a file map for TypeScript/JavaScript files using ts-morph.
  */
 export async function typescriptMapper(

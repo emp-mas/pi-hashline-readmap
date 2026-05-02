@@ -96,7 +96,7 @@ edit({
 ```
 
 ### `replace_symbol`
-Use `replace_symbol` to replace an entire symbol's declaration range (function/method/class/etc.) by name. Resolution uses the same lookup as `read symbol:` — supports `Foo.bar` dotted paths and `Foo.bar@<line>` disambiguation.
+Use `replace_symbol` to replace an entire symbol's declaration range (function/method/class/etc.) by name. Resolution uses the same symbol-query syntax as `read symbol:` — supports `Foo.bar` dotted paths and `Foo.bar@<line>` disambiguation — but mutating replacements are limited to precise in-memory mappers currently registered for TypeScript, JavaScript, Rust, and Java.
 
 ```text
 edit({
@@ -115,6 +115,7 @@ Rules and behavior:
 - Anchored edits (`set_line` / `replace_lines` / `insert_after`) in the same call may not target lines inside a `replace_symbol` range — that combination is rejected with `invalid-edit-variant`.
 - `replace_symbol` honors the read-gate: the file must have been anchored earlier in the session (otherwise `file-not-read`).
 - The post-write syntax-regression validator runs against the resulting content (see below).
+- For languages supported by `read symbol:` but not by a precise in-memory mapper (for example Python/Go/Swift), use anchored edits instead of `replace_symbol`.
 
 ## Recovery from hash mismatch errors
 When the file changes after you captured anchors, `edit` reports a hash mismatch and shows current file lines with `>>>` markers.
@@ -199,3 +200,13 @@ Modes:
 Mode resolution order: explicit `syntaxValidate` option > `PI_HASHLINE_SYNTAX_VALIDATE` env var > default `warn`. Invalid env values fall back to `warn`.
 
 Pre-existing syntax errors do not trigger the warning (±1 tolerance on net-new ERROR count; MISSING is no-tolerance). The validator runs on LF-normalized content, so CRLF round-trips do not produce spurious regressions. The same validator runs for both anchored variants and `replace_symbol`.
+
+## Error-precedence order for mixed edit batches
+
+When an `edits[]` array mixes `replace_symbol` entries with anchored variants (`set_line` / `replace_lines` / `insert_after`), errors are surfaced in this priority order:
+
+1. **`replace_symbol` symbol-resolution errors** (not-found, ambiguous) — returned immediately from the probe pass, before any overlap or anchor check runs and before any write occurs. Error code: `invalid-edit-variant`. Message: same format produced by `read symbol:"..."`.
+2. **Anchor-overlap errors** — returned when an anchored edit's line falls inside a `replace_symbol` pre-replace range. Error code: `invalid-edit-variant`.
+3. **Anchored-edit errors** — hash-mismatch or other anchor failures.
+
+The probe pass runs all `replace_symbol` entries against the original file content first. If every probe succeeds, each resolved result is shared with the apply pass — replacements are applied from bottom to top using the probe's original line ranges and no `replace_symbol` entry invokes a second parse. This means `generateMapFromContent` is invoked at most once per `replace_symbol` entry across the probe+apply lifecycle.

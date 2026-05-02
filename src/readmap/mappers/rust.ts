@@ -876,6 +876,42 @@ function convertSymbols(internalSymbols: InternalSymbol[]): FileSymbol[] {
 }
 
 /**
+ * Generate a file map for Rust content provided in-memory.
+ * Bypasses all disk I/O; filePath is used only for path identity.
+ */
+export async function rustMapperFromContent(
+  filePath: string,
+  content: string,
+  signal?: AbortSignal
+): Promise<FileMap | null> {
+  try {
+    if (!getParser()) return null;
+    if (signal?.aborted) return null;
+
+    const internalSymbols = extractRustSymbols(content);
+    if (internalSymbols.length === 0) return null;
+
+    const symbols = convertSymbols(internalSymbols);
+    const imports = extractUseStatements(content);
+    const totalLines = content.split("\n").length;
+    const totalBytes = Buffer.byteLength(content, "utf8");
+
+    return {
+      path: filePath,
+      totalLines,
+      totalBytes,
+      language: "Rust",
+      symbols,
+      imports,
+      detailLevel: DetailLevel.Full,
+    };
+  } catch (error) {
+    if (signal?.aborted) return null;
+    console.error(`Rust content mapper failed: ${error}`);
+    return null;
+  }
+}
+/**
  * Generate a file map for Rust files using tree-sitter.
  */
 export async function rustMapper(

@@ -144,6 +144,38 @@ grep({ pattern: "createDemoDirectory", path: "tests/fixtures", literal: true, sc
 
 `grep` returns anchored matches, supports literal and regex search, can summarize matches with `summary: true`, and can scope output to enclosing symbols. Use `scopeContext: 0` for only matching lines inside the resolved symbol block.
 
+### Replace a whole symbol
+
+Use `replace_symbol` inside `edit` to swap an entire function, method, or class declaration by name — no anchors needed:
+
+```text
+edit({
+  path: "src/foo.ts",
+  edits: [
+    {
+      replace_symbol: {
+        symbol: "add",
+        new_body: "export function add(a: number, b: number) {\n  return a + b + 1;\n}"
+      }
+    }
+  ]
+})
+```
+
+`replace_symbol` resolves the symbol with the same symbol-query syntax as `read symbol:"..."` for precise in-memory mappers currently registered for TypeScript, JavaScript, Rust, and Java. For files with multiple overloads of the same name, append `@<line>` to select the exact declaration:
+
+```text
+replace_symbol: { symbol: "Foo.bar@42", new_body: "..." }
+```
+
+The new body is automatically re-indented to match the original symbol's leading indentation. After the write, the tree-sitter syntax-regression validator checks for net-new parse errors:
+
+- `warn` (default) — write succeeds; a `syntax-regression` warning is appended.
+- `block` — write is aborted with the `syntax-regression` ptc error code.
+- `off` — validation skipped.
+
+Set the mode with `PI_HASHLINE_SYNTAX_VALIDATE=block|warn|off`. See [prompts/edit.md](prompts/edit.md) for the full `replace_symbol` contract, supported-language scope, `Class.method@line` disambiguation rules, and error-precedence ordering. See [prompts/read.md](prompts/read.md) for the broader `read symbol:"..."` lookup contract.
+
 ### Search code structurally
 
 ```text

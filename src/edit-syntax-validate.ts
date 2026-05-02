@@ -74,7 +74,7 @@ function countNodes(parser: import("tree-sitter"), source: string): NodeStats {
   const stack: import("tree-sitter").SyntaxNode[] = [tree.rootNode];
   while (stack.length > 0) {
     const node = stack.pop()!;
-    if (node.type === "ERROR" || node.hasError && node.type === "ERROR") {
+    if (node.type === "ERROR") {
       errors.push({
         startLine: node.startPosition.row + 1,
         endLine: node.endPosition.row + 1,

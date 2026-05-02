@@ -339,7 +339,15 @@ export function registerEditTool(pi: ExtensionAPI, options: EditToolOptions = {}
 			// pre-replace range. Resolve each target against the ORIGINAL content so the
 			// user-provided anchor line numbers (which reference the file as read) are
 			// compared against the pre-replace coordinates.
+			//
+			// F2: surface replace_symbol symbol-resolution errors (not-found, ambiguous)
+			// BEFORE the AC 26 overlap check and before any write (C1 preserved).
+			// Error-precedence order: replace_symbol resolution > anchor-overlap > anchored-edit.
+			//
+			// AC 4: store successful probe results and reuse them in the apply loop so
+			// generateMapFromContent is invoked at most once per replace_symbol edit.
 			const replaceSymbolRanges: { start: number; end: number }[] = [];
+			const rsProbeResults: { type: "ok"; content: string; replacement: string; warnings: string[]; range: { start: number; end: number } }[] = [];
 			for (const rs of replaceSymbolEdits) {
 				const probe = await replaceSymbol({
 					filePath: absolutePath,
@@ -347,10 +355,84 @@ export function registerEditTool(pi: ExtensionAPI, options: EditToolOptions = {}
 					symbol: rs.replace_symbol.symbol,
 					newBody: rs.replace_symbol.new_body,
 				});
-				if (probe.type === "ok") replaceSymbolRanges.push(probe.range);
+				if (probe.type !== "ok") {
+					// F2: symbol-resolution errors surface before AC 26 overlap check.
+					return {
+						content: [{ type: "text", text: probe.message }],
+						isError: true,
+						details: {
+							diff: "",
+							firstChangedLine: undefined,
+							ptcValue: {
+								tool: "edit",
+								ok: false,
+								path: absolutePath,
+								error: buildPtcError("invalid-edit-variant", probe.message),
+							},
+						} as EditToolDetails & { ptcValue: any },
+					};
+				}
+				rsProbeResults.push(probe);
+				replaceSymbolRanges.push(probe.range);
+			}
+
+			const sortedReplaceSymbolRanges = [...replaceSymbolRanges].sort((a, b) => a.start - b.start || a.end - b.end);
+			for (let i = 1; i < sortedReplaceSymbolRanges.length; i++) {
+				const prev = sortedReplaceSymbolRanges[i - 1];
+				const current = sortedReplaceSymbolRanges[i];
+				if (current.start <= prev.end) {
+					const message = `replace_symbol ranges overlap or duplicate (lines ${prev.start}-${prev.end} and ${current.start}-${current.end}).`;
+					return {
+						content: [{ type: "text", text: message }],
+						isError: true,
+						details: {
+							diff: "",
+							firstChangedLine: undefined,
+							ptcValue: {
+								tool: "edit",
+								ok: false,
+								path: absolutePath,
+								error: buildPtcError("invalid-edit-variant", message),
+							},
+						} as EditToolDetails & { ptcValue: any },
+					};
+				}
 			}
 			if (replaceSymbolRanges.length > 0) {
 				for (const edit of anchorEdits) {
+					if ("replace_lines" in edit) {
+						let startLine: number | undefined;
+						let endLine: number | undefined;
+						try {
+							startLine = parseLineRef((edit as any).replace_lines.start_anchor).line;
+							endLine = parseLineRef((edit as any).replace_lines.end_anchor).line;
+						} catch {
+							// Let the normal anchored edit validation report malformed anchors later.
+						}
+						if (startLine !== undefined && endLine !== undefined) {
+							const lo = Math.min(startLine, endLine);
+							const hi = Math.max(startLine, endLine);
+							for (const range of replaceSymbolRanges) {
+								if (lo <= range.end && hi >= range.start) {
+									const message = `replace_lines range ${lo}-${hi} overlaps a replace_symbol range (lines ${range.start}-${range.end}).`;
+									return {
+										content: [{ type: "text", text: message }],
+										isError: true,
+										details: {
+											diff: "",
+											firstChangedLine: undefined,
+											ptcValue: {
+												tool: "edit",
+												ok: false,
+												path: absolutePath,
+												error: buildPtcError("invalid-edit-variant", message),
+											},
+										} as EditToolDetails & { ptcValue: any },
+									};
+								}
+							}
+						}
+					}
 					const refs: string[] = [];
 					if ("set_line" in edit) refs.push((edit as any).set_line.anchor);
 					else if ("replace_lines" in edit) {
@@ -385,32 +467,24 @@ export function registerEditTool(pi: ExtensionAPI, options: EditToolOptions = {}
 					}
 				}
 			}
+			// Apply pass: reuse all probe results (AC 4). The probe pass resolved every
+			// replace_symbol against originalNormalized; apply those replacements in
+			// reverse source order so original line ranges stay valid and no second
+			// replaceSymbol/generateMapFromContent call is needed.
 			const replaceSymbolWarnings: string[] = [];
-			for (const rs of replaceSymbolEdits) {
-				const r = await replaceSymbol({
-					filePath: absolutePath,
-					content: preAnchorContent,
-					symbol: rs.replace_symbol.symbol,
-					newBody: rs.replace_symbol.new_body,
-				});
-				if (r.type !== "ok") {
-					return {
-						content: [{ type: "text", text: r.message }],
-						isError: true,
-						details: {
-							diff: "",
-							firstChangedLine: undefined,
-							ptcValue: {
-								tool: "edit",
-								ok: false,
-								path: absolutePath,
-								error: buildPtcError("invalid-edit-variant", r.message),
-							},
-						} as EditToolDetails & { ptcValue: any },
-					};
+			if (rsProbeResults.length > 0) {
+				const lines = originalNormalized.split("\n");
+				for (const probe of rsProbeResults) {
+					replaceSymbolWarnings.push(...probe.warnings);
 				}
-				preAnchorContent = r.content;
-				replaceSymbolWarnings.push(...r.warnings);
+				for (const probe of [...rsProbeResults].sort((a, b) => b.range.start - a.range.start)) {
+					lines.splice(
+						probe.range.start - 1,
+						probe.range.end - probe.range.start + 1,
+						...probe.replacement.split("\n"),
+					);
+				}
+				preAnchorContent = lines.join("\n");
 			}
 			let result = preAnchorContent;
 

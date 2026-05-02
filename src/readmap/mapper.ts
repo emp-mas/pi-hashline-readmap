@@ -10,16 +10,16 @@ import { ctagsMapper, MAPPER_VERSION as CTAGS_VERSION } from "./mappers/ctags.js
 import { fallbackMapper, MAPPER_VERSION as FALLBACK_VERSION } from "./mappers/fallback.js";
 import { goMapper, MAPPER_VERSION as GO_VERSION } from "./mappers/go.js";
 import { jsonMapper, MAPPER_VERSION as JSON_VERSION } from "./mappers/json.js";
-import { javaMapper, MAPPER_VERSION as JAVA_VERSION } from "./mappers/java.js";
+import { javaMapper, javaMapperFromContent, MAPPER_VERSION as JAVA_VERSION } from "./mappers/java.js";
 import { jsonlMapper, MAPPER_VERSION as JSONL_VERSION } from "./mappers/jsonl.js";
 import { markdownMapper, MAPPER_VERSION as MARKDOWN_VERSION } from "./mappers/markdown.js";
 import { pythonMapper, MAPPER_VERSION as PYTHON_VERSION } from "./mappers/python.js";
-import { rustMapper, MAPPER_VERSION as RUST_VERSION } from "./mappers/rust.js";
+import { rustMapper, rustMapperFromContent, MAPPER_VERSION as RUST_VERSION } from "./mappers/rust.js";
 import { shellMapper, MAPPER_VERSION as SHELL_VERSION } from "./mappers/shell.js";
 import { sqlMapper, MAPPER_VERSION as SQL_VERSION } from "./mappers/sql.js";
 import { swiftMapper, MAPPER_VERSION as SWIFT_VERSION } from "./mappers/swift.js";
 import { tomlMapper, MAPPER_VERSION as TOML_VERSION } from "./mappers/toml.js";
-import { typescriptMapper, MAPPER_VERSION as TYPESCRIPT_VERSION } from "./mappers/typescript.js";
+import { typescriptMapper, typescriptMapperFromContent, MAPPER_VERSION as TYPESCRIPT_VERSION } from "./mappers/typescript.js";
 import { yamlMapper, MAPPER_VERSION as YAML_VERSION } from "./mappers/yaml.js";
 
 type MapperFn = (
@@ -69,6 +69,25 @@ const MAPPERS_V: Record<string, MapperEntry> = {
   // Phase 7: Shell/Bash regex mapper
   shell: { fn: shellMapper, version: SHELL_VERSION },
 };
+
+type ContentMapperFn = (
+  filePath: string,
+  content: string,
+  signal?: AbortSignal
+) => Promise<FileMap | null>;
+
+/**
+ * Registry of precise content-accepting (no-disk-I/O) mappers.
+ * Languages without a dedicated content mapper return null so mutating callers
+ * never rely on fallback ranges for replacement.
+ */
+const CONTENT_MAPPERS: Record<string, ContentMapperFn> = {
+  typescript: typescriptMapperFromContent,
+  javascript: typescriptMapperFromContent,
+  rust: rustMapperFromContent,
+  java: javaMapperFromContent,
+};
+
 
 export const ALL_MAPPER_IDENTITIES: Record<string, MapperIdentity> = Object.fromEntries([
   ...Object.entries(MAPPERS_V).map(
@@ -126,6 +145,29 @@ export async function generateMap(
   options: MapOptions = {}
 ): Promise<FileMap | null> {
   return (await generateMapWithIdentity(filePath, options)).map;
+}
+
+/**
+ * Generate a structural map from in-memory content.
+ *
+ * Unlike `generateMap`, this function does not create temp directories, write
+ * to disk, or call `readFile`/`stat`. `filePath` is preserved as map identity
+ * and parser-extension context, but is never read from disk.
+ *
+ * Returns null when no precise content-capable mapper is registered for the
+ * file's language, or when the mapper itself returns null.
+ */
+export async function generateMapFromContent(
+  filePath: string,
+  content: string,
+  options: MapOptions = {}
+): Promise<FileMap | null> {
+  const { signal } = options;
+  const langInfo = detectLanguage(filePath);
+  if (!langInfo) return null;
+  const fn = CONTENT_MAPPERS[langInfo.id];
+  if (!fn) return null;
+  return fn(filePath, content, signal);
 }
 
 /**

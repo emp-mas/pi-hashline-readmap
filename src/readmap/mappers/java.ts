@@ -203,6 +203,35 @@ function extractSymbols(root: SyntaxNode, source: string): FileSymbol[] {
   return rootSymbols;
 }
 
+
+export async function javaMapperFromContent(
+  filePath: string,
+  content: string,
+  signal?: AbortSignal
+): Promise<FileMap | null> {
+  try {
+    const p = getParser();
+    if (!p) return null;
+    if (signal?.aborted) return null;
+    const tree = p.parse(content);
+    const symbols = extractSymbols(tree.rootNode, content);
+    if (symbols.length === 0) return null;
+    return {
+      path: filePath,
+      totalLines: content.split("\n").length,
+      totalBytes: Buffer.byteLength(content, "utf8"),
+      language: "Java",
+      symbols,
+      imports: extractImports(tree.rootNode, content),
+      detailLevel: DetailLevel.Full,
+    };
+  } catch (error) {
+    if (signal?.aborted) return null;
+    console.error(`Java content mapper failed: ${error}`);
+    return null;
+  }
+}
+
 export async function javaMapper(filePath: string, signal?: AbortSignal): Promise<FileMap | null> {
   try {
     const p = getParser();

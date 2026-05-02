@@ -66,6 +66,7 @@ function extractName(line: string): string {
   return cleaned.split(/\s|[({<:]/)[0] || "unknown";
 }
 
+
 /**
  * Fallback mapper using grep for basic structure extraction.
  * Works for any file type but produces minimal output.

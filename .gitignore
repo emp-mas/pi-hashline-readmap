@@ -43,6 +43,7 @@ yarn-error.log*
 .megapowers/
 .pi/
 runs/workguards/
+.codegraph/
 
 # Local workspace / planning docs
 .zellij*

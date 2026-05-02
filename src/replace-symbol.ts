@@ -1,9 +1,7 @@
-import { generateMap } from "./readmap/mapper.js";
+import { generateMapFromContent } from "./readmap/mapper.js";
+import { detectLanguage } from "./readmap/language-detect.js";
 import { findSymbol } from "./readmap/symbol-lookup.js";
 import { formatAmbiguous, formatNotFound } from "./readmap/symbol-error-format.js";
-import { writeFileSync, mkdtempSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
 
 export interface ReplaceSymbolInput {
 	filePath: string;
@@ -13,9 +11,10 @@ export interface ReplaceSymbolInput {
 }
 
 export type ReplaceSymbolResult =
-	| { type: "ok"; content: string; warnings: string[]; range: { start: number; end: number } }
+	| { type: "ok"; content: string; replacement: string; warnings: string[]; range: { start: number; end: number } }
 	| { type: "not-found"; message: string }
-	| { type: "ambiguous"; message: string };
+	| { type: "ambiguous"; message: string }
+	| { type: "unsupported"; message: string };
 
 function detectIndent(line: string): string {
 	return line.match(/^\s*/)?.[0] ?? "";
@@ -33,13 +32,18 @@ function reindent(text: string, indent: string): string {
 	return text.split("\n").map((l) => (l.length ? indent + l : l)).join("\n");
 }
 
+const PRECISE_CONTENT_MAPPER_LANGUAGES = new Set(["typescript", "javascript", "rust", "java"]);
+
 export async function replaceSymbol(input: ReplaceSymbolInput): Promise<ReplaceSymbolResult> {
-	const dir = mkdtempSync(join(tmpdir(), "rs-"));
-	const ext = input.filePath.match(/\.[^./\\]+$/)?.[0] ?? "";
-	const tmp = join(dir, "in" + ext);
-	writeFileSync(tmp, input.content);
-	const map = await generateMap(tmp);
+	const map = await generateMapFromContent(input.filePath, input.content);
 	if (!map) {
+		const langInfo = detectLanguage(input.filePath);
+		if (langInfo && !PRECISE_CONTENT_MAPPER_LANGUAGES.has(langInfo.id)) {
+			return {
+				type: "unsupported",
+				message: `Unsupported ${langInfo.name} file for replace_symbol: no precise in-memory mapper is registered. Use anchored edits for this file type.`,
+			};
+		}
 		return { type: "not-found", message: `[Warning: symbol '${input.symbol}' not found. Available symbols: ]` };
 	}
 	const lookup = findSymbol(map, input.symbol);
@@ -70,6 +74,7 @@ export async function replaceSymbol(input: ReplaceSymbolInput): Promise<ReplaceS
 	return {
 		type: "ok",
 		content: newContent,
+		replacement: reindented,
 		warnings,
 		range: { start: sym.startLine, end: sym.endLine },
 	};
