@@ -13,6 +13,9 @@ import type { SemanticSummary } from "./ptc-value.js";
 import { buildPtcError } from "./ptc-value.js";
 import { Text } from "@mariozechner/pi-tui";
 import { formatEditCallText, formatEditResultText } from "./edit-render-helpers.js";
+import { validateSyntaxRegression } from "./edit-syntax-validate.js";
+import { resolveSyntaxValidateMode, type SyntaxValidateOptions } from "./syntax-validate-mode.js";
+import { replaceSymbol } from "./replace-symbol.js";
 
 export function wrapWriteError(err: any, path: string): Error {
 	const code = err?.code;
@@ -39,6 +42,10 @@ const hashlineEditItemSchema = Type.Union([
 		{ replace: Type.Object({ old_text: Type.String(), new_text: Type.String(), all: Type.Optional(Type.Boolean()) }) },
 		{ additionalProperties: true },
 	),
+	Type.Object(
+		{ replace_symbol: Type.Object({ symbol: Type.String(), new_body: Type.String() }) },
+		{ additionalProperties: true },
+	),
 ]);
 
 const hashlineEditSchema = Type.Object(
@@ -55,6 +62,7 @@ const EDIT_DESC = readFileSync(new URL("../prompts/edit.md", import.meta.url), "
 
 export interface EditToolOptions {
 	wasReadInSession?: (absolutePath: string) => boolean;
+	syntaxValidate?: SyntaxValidateOptions["syntaxValidate"];
 }
 
 // ─── Registration ───────────────────────────────────────────────────────
@@ -216,9 +224,10 @@ export function registerEditTool(pi: ExtensionAPI, options: EditToolOptions = {}
 					Number("set_line" in e) +
 					Number("replace_lines" in e) +
 					Number("insert_after" in e) +
-					Number("replace" in e);
+					Number("replace" in e) +
+					Number("replace_symbol" in e);
 				if (variantCount !== 1) {
-					const message = `edits[${i}] must contain exactly one of: 'set_line', 'replace_lines', 'insert_after', 'replace'. Got: [${Object.keys(e).join(", ")}].`;
+					const message = `edits[${i}] must contain exactly one of: 'set_line', 'replace_lines', 'insert_after', 'replace', 'replace_symbol'. Got: [${Object.keys(e).join(", ")}].`;
 					return {
 						content: [{ type: "text", text: message }],
 						isError: true,
@@ -242,6 +251,27 @@ export function registerEditTool(pi: ExtensionAPI, options: EditToolOptions = {}
 			const replaceEdits = edits.filter(
 				(e): e is { replace: { old_text: string; new_text: string; all?: boolean } } => "replace" in e,
 			);
+			const replaceSymbolEdits = edits.filter(
+				(e): e is { replace_symbol: { symbol: string; new_body: string } } => "replace_symbol" in e,
+			);
+			for (const rs of replaceSymbolEdits) {
+				if (!rs.replace_symbol.new_body.trim()) {
+					return {
+						content: [{ type: "text", text: "replace_symbol.new_body must not be empty or whitespace-only." }],
+						isError: true,
+						details: {
+							diff: "",
+							firstChangedLine: undefined,
+							ptcValue: {
+								tool: "edit",
+								ok: false,
+								path: absolutePath,
+								error: buildPtcError("invalid-edit-variant", "replace_symbol.new_body must not be empty or whitespace-only."),
+							},
+						} as EditToolDetails & { ptcValue: any },
+					};
+				}
+			}
 
 			let rawBuffer: Buffer;
 			try {
@@ -304,7 +334,85 @@ export function registerEditTool(pi: ExtensionAPI, options: EditToolOptions = {}
 			const { bom, text: content } = stripBom(raw);
 			const originalEnding = detectLineEnding(content);
 			const originalNormalized = normalizeToLF(content);
-			let result = originalNormalized;
+			let preAnchorContent = originalNormalized;
+			// AC 26: reject anchored edits that target a line inside any replace_symbol
+			// pre-replace range. Resolve each target against the ORIGINAL content so the
+			// user-provided anchor line numbers (which reference the file as read) are
+			// compared against the pre-replace coordinates.
+			const replaceSymbolRanges: { start: number; end: number }[] = [];
+			for (const rs of replaceSymbolEdits) {
+				const probe = await replaceSymbol({
+					filePath: absolutePath,
+					content: originalNormalized,
+					symbol: rs.replace_symbol.symbol,
+					newBody: rs.replace_symbol.new_body,
+				});
+				if (probe.type === "ok") replaceSymbolRanges.push(probe.range);
+			}
+			if (replaceSymbolRanges.length > 0) {
+				for (const edit of anchorEdits) {
+					const refs: string[] = [];
+					if ("set_line" in edit) refs.push((edit as any).set_line.anchor);
+					else if ("replace_lines" in edit) {
+						refs.push((edit as any).replace_lines.start_anchor, (edit as any).replace_lines.end_anchor);
+					} else if ("insert_after" in edit) refs.push((edit as any).insert_after.anchor);
+					for (const ref of refs) {
+						let parsedLine: number | undefined;
+						try {
+							parsedLine = parseLineRef(ref).line;
+						} catch {
+							continue;
+						}
+						for (const range of replaceSymbolRanges) {
+							if (parsedLine >= range.start && parsedLine <= range.end) {
+								const message = `Anchor at line ${parsedLine} falls inside a replace_symbol range (lines ${range.start}-${range.end}).`;
+								return {
+									content: [{ type: "text", text: message }],
+									isError: true,
+									details: {
+										diff: "",
+										firstChangedLine: undefined,
+										ptcValue: {
+											tool: "edit",
+											ok: false,
+											path: absolutePath,
+											error: buildPtcError("invalid-edit-variant", message),
+										},
+									} as EditToolDetails & { ptcValue: any },
+								};
+							}
+						}
+					}
+				}
+			}
+			const replaceSymbolWarnings: string[] = [];
+			for (const rs of replaceSymbolEdits) {
+				const r = await replaceSymbol({
+					filePath: absolutePath,
+					content: preAnchorContent,
+					symbol: rs.replace_symbol.symbol,
+					newBody: rs.replace_symbol.new_body,
+				});
+				if (r.type !== "ok") {
+					return {
+						content: [{ type: "text", text: r.message }],
+						isError: true,
+						details: {
+							diff: "",
+							firstChangedLine: undefined,
+							ptcValue: {
+								tool: "edit",
+								ok: false,
+								path: absolutePath,
+								error: buildPtcError("invalid-edit-variant", r.message),
+							},
+						} as EditToolDetails & { ptcValue: any },
+					};
+				}
+				preAnchorContent = r.content;
+				replaceSymbolWarnings.push(...r.warnings);
+			}
+			let result = preAnchorContent;
 
 			let anchorResult;
 			try {
@@ -429,6 +537,39 @@ export function registerEditTool(pi: ExtensionAPI, options: EditToolOptions = {}
 			}
 
 			throwIfAborted(signal);
+
+			// Syntax-regression validator (warn/block/off)
+			const syntaxMode = resolveSyntaxValidateMode({ syntaxValidate: options.syntaxValidate });
+			let syntaxWarning: string | undefined;
+			if (syntaxMode !== "off") {
+				const regression = await validateSyntaxRegression({
+					filePath: absolutePath,
+					before: originalNormalized,
+					after: result,
+				});
+				if (regression) {
+					const lines = regression.errorLines.join(", ");
+					const message = `syntax-regression: lines ${lines}`;
+					// Task 7 (AC 12): block mode aborts with syntax-regression code; file is left untouched.
+					if (syntaxMode === "block") {
+						return {
+							content: [{ type: "text", text: message }],
+							isError: true,
+							details: {
+								diff: "",
+								firstChangedLine: undefined,
+								ptcValue: {
+									tool: "edit",
+									ok: false,
+									path: absolutePath,
+									error: buildPtcError("syntax-regression", message),
+								},
+							} as EditToolDetails & { ptcValue: any },
+						};
+					}
+					syntaxWarning = message;
+				}
+			}
 			try {
 				await fsWriteFile(absolutePath, bom + restoreLineEndings(result, originalEnding), "utf-8");
 			} catch (err: any) {
@@ -463,6 +604,8 @@ export function registerEditTool(pi: ExtensionAPI, options: EditToolOptions = {}
 			const warnings: string[] = [];
 			if (anchorResult.warnings?.length) warnings.push(...anchorResult.warnings);
 			if (legacyNormalizationWarning) warnings.push(legacyNormalizationWarning);
+			if (replaceSymbolWarnings.length) warnings.push(...replaceSymbolWarnings);
+			if (syntaxWarning) warnings.push(syntaxWarning);
 			// Semantic classification
 			const internalClassification = classifyEdit(originalNormalized, result);
 			const difftAvailable = await isDifftAvailable();

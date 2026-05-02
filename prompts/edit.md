@@ -3,13 +3,14 @@ Surgically edit files with hash-verified line references (anchors). Copy `LINE:H
 ## What edit does
 `edit` applies one or more changes to an existing text file using hash-verified anchors. Anchored operations are verified against the current file contents before they are written.
 
-## The four edit variants — when to use which
+## The five edit variants — when to use which
 
 | Variant | Use for | Anchors needed |
 |---|---|---|
 | `set_line` | Replace or delete exactly one line | 1 |
 | `replace_lines` | Replace or delete a contiguous range of lines | 2 |
 | `insert_after` | Insert new lines after an existing line | 1 |
+| `replace_symbol` | Replace an entire symbol declaration by name | 0 (uses `symbol`) |
 | `replace` | Fallback global string replacement | 0 |
 
 ### Prefer anchored variants
@@ -35,7 +36,7 @@ Surgically edit files with hash-verified line references (anchors). Copy `LINE:H
 
 - `path` is the file to edit
 - `edits` is an array of edit operations
-- Each edit entry must contain exactly one of `set_line`, `replace_lines`, `insert_after`, or `replace`
+- Each edit entry must contain exactly one of `set_line`, `replace_lines`, `insert_after`, `replace_symbol`, or `replace`
 - `new_text` is plain content — do not include hash prefixes or diff markers
 
 ## Variant examples
@@ -94,6 +95,27 @@ edit({
 })
 ```
 
+### `replace_symbol`
+Use `replace_symbol` to replace an entire symbol's declaration range (function/method/class/etc.) by name. Resolution uses the same lookup as `read symbol:` — supports `Foo.bar` dotted paths and `Foo.bar@<line>` disambiguation.
+
+```text
+edit({
+  path: "src/foo.ts",
+  edits: [
+    { replace_symbol: { symbol: "add", new_body: "export function add(a: number, b: number) {\n  return a + b + 1;\n}" } }
+  ]
+})
+```
+
+Rules and behavior:
+- `symbol` is required and must resolve to exactly one symbol. Ambiguous or not-found queries return the same banner shape produced by `read symbol:` (use `Foo.bar@<startLine>` to disambiguate).
+- `new_body` must not be empty or whitespace-only — empty bodies are rejected with `invalid-edit-variant`.
+- The new body is dedented and re-indented to match the original symbol's leading indentation. Pass a flush body (no extra leading indent) and the tool will indent it correctly inside classes/namespaces.
+- If `new_body` declares a different leaf name than the resolved symbol, a `name-mismatch: expected <old>, got <new>` warning is emitted (the edit still applies).
+- Anchored edits (`set_line` / `replace_lines` / `insert_after`) in the same call may not target lines inside a `replace_symbol` range — that combination is rejected with `invalid-edit-variant`.
+- `replace_symbol` honors the read-gate: the file must have been anchored earlier in the session (otherwise `file-not-read`).
+- The post-write syntax-regression validator runs against the resulting content (see below).
+
 ## Recovery from hash mismatch errors
 When the file changes after you captured anchors, `edit` reports a hash mismatch and shows current file lines with `>>>` markers.
 
@@ -128,7 +150,7 @@ If the result is classified as whitespace-only, verify that you changed the inte
 If `edit` says the file needs fresh anchors, obtain them with `read`, `grep`, `ast_search`, or `write` first.
 
 ### Invalid edit shape
-Each edit entry must contain exactly one variant. Do not mix `set_line`, `replace_lines`, `insert_after`, and `replace` in the same entry.
+Each edit entry must contain exactly one variant. Do not mix `set_line`, `replace_lines`, `insert_after`, `replace_symbol`, and `replace` in the same entry.
 
 ## Anchor sources
 Any tool that emits `LINE:HASH|content` anchors can feed `edit`:
@@ -164,3 +186,16 @@ edit({ path: "src/new-file.ts", edits: [{ set_line: { anchor: "1:2f9", new_text:
 - Anchored edits are validated and applied atomically from bottom to top.
 - If a non-whitespace-intent edit produces only whitespace-only changes, the tool emits a prominent warning so you can re-read and verify before assuming behavior changed.
 - After a successful replace-only batch, the tool emits an informational hint nudging you back toward anchored variants for safer future edits.
+
+## Syntax-regression notice
+
+After every successful write, `edit` runs a tree-sitter syntax-regression validator that compares parser ERROR/MISSING node counts before and after the edit. Languages currently covered: **Rust, C, C++, C headers, Java, Clojure**. Other languages and unmappable files are skipped (no warning, no block).
+
+Modes:
+- `warn` (default) — on a net-new ERROR or MISSING node, the edit still applies and a `syntax-regression: lines X-Y` entry is appended to the response `warnings` array.
+- `block` — the edit is aborted with the `syntax-regression` ptc error code; the file on disk is unchanged.
+- `off` — the validator is skipped entirely.
+
+Mode resolution order: explicit `syntaxValidate` option > `PI_HASHLINE_SYNTAX_VALIDATE` env var > default `warn`. Invalid env values fall back to `warn`.
+
+Pre-existing syntax errors do not trigger the warning (±1 tolerance on net-new ERROR count; MISSING is no-tolerance). The validator runs on LF-normalized content, so CRLF round-trips do not produce spurious regressions. The same validator runs for both anchored variants and `replace_symbol`.

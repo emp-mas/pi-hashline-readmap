@@ -26,6 +26,7 @@ const REQUIRED_CODES = [
   "nu-timed-out",
   "nu-spawn-error",
   "nu-temp-file-error",
+  "syntax-regression",
 ] as const;
 
 describe("PTC_ERROR_CODES taxonomy", () => {

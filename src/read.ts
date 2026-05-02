@@ -18,6 +18,7 @@ import { throwIfAborted } from "./runtime";
 import { getOrGenerateMap } from "./map-cache";
 import { formatFileMapWithBudget } from "./readmap/formatter.js";
 import { findSymbol, type SymbolMatch } from "./readmap/symbol-lookup.js";
+import { formatAmbiguous, formatNotFound } from "./readmap/symbol-error-format.js";
 import { buildReadOutput } from "./read-output.js";
 import { buildReadRehydrateDescriptor } from "./context-hygiene.js";
 import { buildLocalBundle } from "./read-local-bundle.js";
@@ -370,18 +371,11 @@ export function registerReadTool(pi: ExtensionAPI, options: ReadToolOptions = {}
 				} else {
 					const lookup = findSymbol(symbolFileMap, p.symbol);
 					if (lookup.type === "ambiguous") {
-						const lines = lookup.candidates.map((c) => `- ${c.name} (${c.kind}) — lines ${c.startLine}-${c.endLine}`);
-						const hints = lookup.candidates.map((c) => `${p.symbol}@${c.startLine}`).join(" or ");
 						return succeed({
 							content: [
 								{
 									type: "text",
-									text: [
-										`Symbol '${p.symbol}' is ambiguous.`,
-										"Matches:",
-										...lines,
-										`Use ${hints} to select by start line.`,
-									].join("\n"),
+									text: formatAmbiguous(p.symbol, lookup.candidates),
 								},
 							],
 							isError: false,
@@ -389,11 +383,7 @@ export function registerReadTool(pi: ExtensionAPI, options: ReadToolOptions = {}
 						});
 					}
 					if (lookup.type === "not-found") {
-						const available = symbolFileMap.symbols
-							.slice(0, 20)
-							.map((s) => s.name)
-							.join(", ");
-						symbolWarning = `[Warning: symbol '${p.symbol}' not found. Available symbols: ${available}]\n\n`;
+						symbolWarning = `${formatNotFound(p.symbol, symbolFileMap)}\n\n`;
 					}
 					if (lookup.type === "found") {
 						startLine = Math.max(1, lookup.symbol.startLine);

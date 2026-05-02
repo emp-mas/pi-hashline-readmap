@@ -50,6 +50,10 @@ export const PTC_ERROR_CODES = {
   "nu-timed-out": { description: "nushell command exceeded the timeout", trigger: "result.timedOut === true" },
   "nu-spawn-error": { description: "failed to spawn the nushell process", trigger: "spawn ENOENT or other spawn-time error" },
   "nu-temp-file-error": { description: "failed to write the temporary nushell script file", trigger: "fs writeFileSync failed in executeNuScript" },
+  "syntax-regression": {
+    description: "edit introduced new tree-sitter syntax errors compared to pre-edit content",
+    trigger: "post-write validator detected net-new ERROR or MISSING nodes (block mode)",
+  },
 } as const;
 
 export type PtcErrorCode = keyof typeof PTC_ERROR_CODES;

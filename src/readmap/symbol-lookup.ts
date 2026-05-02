@@ -18,7 +18,7 @@ export type SymbolLookupResult =
       tier: "camelCase" | "substring";
       otherCandidates: SymbolMatch[];
     }
-  | { type: "not-found" };
+  | { type: "not-found"; message?: string; candidates?: SymbolMatch[] };
 
 function toMatch(symbol: FileSymbol, parentName?: string): SymbolMatch {
   return {
@@ -112,14 +112,61 @@ export function findSymbol(map: FileMap, query: string): SymbolLookupResult {
   const allSymbols = flattenSymbols(map.symbols);
   const javaRelativeQuery = stripJavaPackagePrefix(map, q);
 
-  if (q.includes("@")) {
-    const parts = q.split("@");
-    if (parts.length === 2 && parts[0] && /^\d+$/.test(parts[1])) {
-      const [namePart, linePart] = parts;
-      const lineNum = Number.parseInt(linePart, 10);
-      const byLine = allSymbols.filter((c) => c.symbol.name === namePart && c.symbol.startLine === lineNum);
-      if (byLine.length === 1) return { type: "found", symbol: toMatch(byLine[0].symbol, byLine[0].parentName) };
-      if (byLine.length > 1) return { type: "ambiguous", candidates: toMatches(byLine.slice(0, 5)) };
+  const atLineMatch = /^(.+?)@(\d+)$/.exec(q);
+  if (atLineMatch) {
+    const namePart = atLineMatch[1];
+    const lineNum = Number.parseInt(atLineMatch[2], 10);
+    let pool: SymbolCandidate[];
+    if (namePart.includes(".")) {
+      const parts = namePart.split(".").map((p) => p.trim());
+      pool = parts.every((p) => p.length > 0)
+        ? resolveDotPath(map.symbols, parts)
+        : [];
+    } else {
+      pool = allSymbols.filter((c) => c.symbol.name === namePart);
+    }
+    // AC 16 + AC 17: drop candidates without usable startLine. If that empties
+    // the pool entirely, surface any same-leaf-name decls elsewhere in the file
+    // so the user can see real candidate lines.
+    pool = pool.filter((c) => Number.isFinite(c.symbol.startLine) && c.symbol.startLine > 0);
+    if (pool.length === 0) {
+      const leaf = namePart.split(".").pop() ?? namePart;
+      const sameLeaf = allSymbols.filter(
+        (c) => c.symbol.name === leaf
+          && Number.isFinite(c.symbol.startLine)
+          && c.symbol.startLine > 0,
+      );
+      if (sameLeaf.length > 0) {
+        const list = sameLeaf
+          .slice(0, 5)
+          .map((c) => `${c.parentName ? c.parentName + "." : ""}${c.symbol.name}@${c.symbol.startLine}`)
+          .join(", ");
+        return {
+          type: "not-found",
+          message: `${q} not found. Candidates: ${list}`,
+          candidates: toMatches(sameLeaf.slice(0, 5)),
+        };
+      }
+    }
+    if (pool.length > 0) {
+      const containing = pool.filter(
+        (c) => c.symbol.startLine <= lineNum && c.symbol.endLine >= lineNum,
+      );
+      if (containing.length > 0) {
+        return { type: "found", symbol: toMatch(containing[0].symbol, containing[0].parentName) };
+      }
+      const below = pool
+        .filter((c) => c.symbol.startLine >= lineNum)
+        .sort((a, b) => a.symbol.startLine - b.symbol.startLine);
+      if (below.length) {
+        return { type: "found", symbol: toMatch(below[0].symbol, below[0].parentName) };
+      }
+      const above = pool
+        .filter((c) => c.symbol.startLine < lineNum)
+        .sort((a, b) => b.symbol.startLine - a.symbol.startLine);
+      if (above.length) {
+        return { type: "found", symbol: toMatch(above[0].symbol, above[0].parentName) };
+      }
     }
   }
 

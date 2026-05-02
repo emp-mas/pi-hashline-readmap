@@ -42,6 +42,14 @@ Use the `symbol` parameter to read a specific symbol by name — no line numbers
 
 **Mutual exclusivity:** `symbol` cannot be combined with `offset` or `limit`. Use one addressing mode or the other.
 
+**`@line` disambiguation:** append `@<digits>` to a symbol query to pick a specific overload or definition by line number, e.g. `read(path, { symbol: "Foo.bar@42" })`. The `@<digits>` suffix only matches at end-of-string — ordinary names like `@Override`, `foo@bar`, or `foo@1bar` are treated as plain names, not `@line` queries. Resolution order:
+
+1. **Containing range** — a candidate whose `[startLine, endLine]` contains the requested line.
+2. **Nearest at-or-below** — the candidate with the smallest `startLine >= line`.
+3. **Nearest above** — the candidate with the largest `startLine < line`.
+
+When `@line` cannot be resolved but other declarations of the same leaf name exist in the file, the not-found message lists candidate `name@<startLine>` references so you can retry with a precise line.
+
 **Behavior by result:**
 
 - **Found (exact / case-insensitive / prefix):** Returns hashlined content for the symbol's line range only, prepended with `[Symbol: name (kind), lines X-Y of Z]`. Silent — no banner.
