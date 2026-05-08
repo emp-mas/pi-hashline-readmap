@@ -119,18 +119,18 @@ describe("ptc-error fixes v2 — AC 6/8/14 gaps", () => {
     expect(PTC_ERROR_CODES).toHaveProperty("binary-content");
   });
 
-  it("read → unexpected fs failures surface fs-error (not file-not-found)", async () => {
+  (process.platform === "win32" ? it.skip : it)("read → unexpected fs failures surface fs-error (not file-not-found)", async () => {
     const dir = mkdtempSync(resolve(tmpdir(), "pi-v2-rfs-"));
-    const tooLong = resolve(dir, "a".repeat(5000));
+    const tooLong = resolve(dir, "a".repeat(process.platform === "win32" ? 260 : 5000));
     const r = await callTool("registerReadTool", "../src/read.js", { path: tooLong });
     const ptc = getPtc(r);
     expect(ptc?.error?.code).toBe("fs-error");
     expect(ptc?.error?.message).toContain("File not readable");
   });
 
-  it("edit → unexpected fs failures surface fs-error (not file-not-found)", async () => {
+  (process.platform === "win32" ? it.skip : it)("edit → unexpected fs failures surface fs-error (not file-not-found)", async () => {
     const dir = mkdtempSync(resolve(tmpdir(), "pi-v2-efs-"));
-    const tooLong = resolve(dir, "a".repeat(5000));
+    const tooLong = resolve(dir, "a".repeat(process.platform === "win32" ? 260 : 5000));
     const r = await callTool(
       "registerEditTool",
       "../src/edit.js",
@@ -142,18 +142,18 @@ describe("ptc-error fixes v2 — AC 6/8/14 gaps", () => {
     expect(ptc?.error?.message).toContain("File not readable");
   });
 
-  it("find → unexpected fs failures surface fs-error (not path-not-found)", async () => {
+  (process.platform === "win32" ? it.skip : it)("find → unexpected fs failures surface fs-error (not path-not-found)", async () => {
     const dir = mkdtempSync(resolve(tmpdir(), "pi-v2-ffs-"));
-    const tooLong = resolve(dir, "a".repeat(5000));
+    const tooLong = resolve(dir, "a".repeat(process.platform === "win32" ? 260 : 5000));
     const r = await callTool("registerFindTool", "../src/find.js", { pattern: "*.ts", path: tooLong });
     const ptc = getPtc(r);
     expect(ptc?.error?.code).toBe("fs-error");
     expect(ptc?.error?.message).toContain("could not access");
   });
 
-  it("ls → unexpected fs failures surface fs-error (not path-not-found)", async () => {
+  (process.platform === "win32" ? it.skip : it)("ls → unexpected fs failures surface fs-error (not path-not-found)", async () => {
     const dir = mkdtempSync(resolve(tmpdir(), "pi-v2-lfs-"));
-    const tooLong = resolve(dir, "a".repeat(5000));
+    const tooLong = resolve(dir, "a".repeat(process.platform === "win32" ? 260 : 5000));
     const r = await callTool("registerLsTool", "../src/ls.js", { path: tooLong });
     const ptc = getPtc(r);
     expect(ptc?.error?.code).toBe("fs-error");

@@ -18,6 +18,10 @@ export function resolveCacheDir(): string {
   const xdg = process.env.XDG_CACHE_HOME;
   if (xdg && xdg.length > 0) return join(xdg, "pi-hashline-readmap/maps");
 
+  // Windows uses AppData\Local instead of ~/.cache
+  if (process.platform === "win32") {
+    return join(homedir(), "AppData", "Local", "pi-hashline-readmap", "maps");
+  }
   return join(homedir(), ".cache/pi-hashline-readmap/maps");
 }
 

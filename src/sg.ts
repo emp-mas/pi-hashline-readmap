@@ -253,7 +253,7 @@ export function registerSgTool(pi: ExtensionAPI, options: SgToolOptions = {}) {
         const grouped = new Map<string, { abs: string; matches: SgMatch[] }>();
         for (const m of matches as SgMatch[]) {
           const abs = toAbsoluteFile(m);
-          const display = path.relative(ctx.cwd, abs);
+          const display = path.relative(ctx.cwd, abs).replace(/\\/g, "/");
           const bucket = grouped.get(display);
           if (bucket) bucket.matches.push(m);
           else grouped.set(display, { abs, matches: [m] });

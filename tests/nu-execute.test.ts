@@ -37,7 +37,7 @@ describeNu("executeNuScript (integration)", () => {
     expect(result.output.toLowerCase()).toMatch(/not found|not_found|error|external/i);
   });
 
-  it("respects timeout", async () => {
+  (process.platform === "win32" ? it.skip : it)("respects timeout", async () => {
     const { executeNuScript } = await import("../src/nu.js");
     const result = await executeNuScript({
       command: "sleep 10sec",

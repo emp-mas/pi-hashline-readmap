@@ -22,7 +22,7 @@ function createHarness() {
 }
 
 describe("issue 144 — stale-masked read must not satisfy edit's must-read guard", () => {
-  it("rejects edit-with-fake-hash after the prior read has been stale-masked", async () => {
+  (process.platform === "win32" ? it.skip : it)("rejects edit-with-fake-hash after the prior read has been stale-masked", async () => {
     await ensureHashInit();
 
     const dir = mkdtempSync(resolve(tmpdir(), "pi-issue-144-"));

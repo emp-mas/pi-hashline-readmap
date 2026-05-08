@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { ensureBashOriginalOutputSnapshot, selectBashOriginalOutput } from "../src/rtk/bash-original-output.js";
 
 describe("selectBashOriginalOutput", () => {
@@ -12,7 +14,7 @@ describe("selectBashOriginalOutput", () => {
         readFile: vi.fn(),
         writeFile,
         randomId: () => "fixed",
-        tempDir: () => "/tmp",
+        tempDir: () => tmpdir(),
       },
     });
 
@@ -37,23 +39,24 @@ describe("selectBashOriginalOutput", () => {
 
     const result = selectBashOriginalOutput({
       visibleText: "tail",
-      fullOutputPath: "/tmp/pi-full-output.txt",
+      fullOutputPath: join(tmpdir(), "pi-full-output.txt"),
       snapshotMaxLines: 1,
       snapshotMaxBytes: 1,
       fs: {
         readFile,
         writeFile,
         randomId: () => "fixed",
-        tempDir: () => "/tmp",
+        tempDir: () => tmpdir(),
       },
     });
 
-    expect(readFile).toHaveBeenCalledWith("/tmp/pi-full-output.txt");
+    const expectedPath = join(tmpdir(), "pi-full-output.txt");
+    expect(readFile).toHaveBeenCalledWith(expectedPath);
     expect(result.inputForRtk).toBe("full\nbody\n");
     expect(result.metadata).toMatchObject({
       source: "pi-full-output-path",
       restoredContentForRtk: true,
-      originalPath: "/tmp/pi-full-output.txt",
+      originalPath: join(tmpdir(), "pi-full-output.txt"),
       snapshotNeeded: false,
       snapshotWritten: false,
       originalLineCount: 3,
@@ -71,21 +74,21 @@ describe("selectBashOriginalOutput", () => {
 
     const result = selectBashOriginalOutput({
       visibleText: "",
-      fullOutputPath: "/tmp/pi-full-output-empty-visible.txt",
+      fullOutputPath: join(tmpdir(), "pi-full-output-empty-visible.txt"),
       fs: {
         readFile,
         writeFile,
         randomId: () => "fixed",
-        tempDir: () => "/tmp",
+        tempDir: () => tmpdir(),
       },
     });
 
-    expect(readFile).toHaveBeenCalledWith("/tmp/pi-full-output-empty-visible.txt");
+    expect(readFile).toHaveBeenCalledWith(join(tmpdir(), "pi-full-output-empty-visible.txt"));
     expect(result.inputForRtk).toBe("full from empty visible\n");
     expect(result.metadata).toMatchObject({
       source: "pi-full-output-path",
       restoredContentForRtk: true,
-      originalPath: "/tmp/pi-full-output-empty-visible.txt",
+      originalPath: join(tmpdir(), "pi-full-output-empty-visible.txt"),
       visibleLineCount: 0,
       visibleByteCount: 0,
       originalLineCount: 2,
@@ -98,35 +101,37 @@ describe("selectBashOriginalOutput", () => {
   it("detects visible full-output notices and prefers metadata paths", () => {
     const readFile = vi.fn((path: string) => `full from ${path}`);
 
+    const noticePath = join(tmpdir(), "from-notice.txt");
     const visibleOnly = selectBashOriginalOutput({
-      visibleText: "tail\n\n[Showing lines 9-10 of 10. Full output: /tmp/from-notice.txt]",
-      fs: { readFile, writeFile: vi.fn(), randomId: () => "fixed", tempDir: () => "/tmp" },
+      visibleText: `tail\n\n[Showing lines 9-10 of 10. Full output: ${noticePath}]`,
+      fs: { readFile, writeFile: vi.fn(), randomId: () => "fixed", tempDir: () => tmpdir() },
     });
-    expect(visibleOnly.inputForRtk).toBe("full from /tmp/from-notice.txt");
-    expect(visibleOnly.metadata?.originalPath).toBe("/tmp/from-notice.txt");
+    expect(visibleOnly.inputForRtk).toBe(`full from ${noticePath}`);
+    expect(visibleOnly.metadata?.originalPath).toBe(noticePath);
 
     readFile.mockClear();
+    const metadataPath = join(tmpdir(), "from-metadata.txt");
     const metadataWins = selectBashOriginalOutput({
-      visibleText: "tail\n[Output truncated. Full output: /tmp/from-notice.txt]",
-      fullOutputPath: "/tmp/from-metadata.txt",
-      fs: { readFile, writeFile: vi.fn(), randomId: () => "fixed", tempDir: () => "/tmp" },
+      visibleText: `tail\n[Output truncated. Full output: ${noticePath}]`,
+      fullOutputPath: metadataPath,
+      fs: { readFile, writeFile: vi.fn(), randomId: () => "fixed", tempDir: () => tmpdir() },
     });
-    expect(readFile).toHaveBeenCalledWith("/tmp/from-metadata.txt");
-    expect(metadataWins.inputForRtk).toBe("full from /tmp/from-metadata.txt");
+    expect(readFile).toHaveBeenCalledWith(metadataPath);
+    expect(metadataWins.inputForRtk).toBe(`full from ${metadataPath}`);
   });
 
 
   it("falls back to visible text and records metadata when full-output read fails", () => {
     const result = selectBashOriginalOutput({
       visibleText: "visible tail",
-      fullOutputPath: "/tmp/missing.txt",
+      fullOutputPath: join(tmpdir(), "missing.txt"),
       snapshotMaxLines: 99,
       snapshotMaxBytes: 999,
       fs: {
         readFile: () => { throw new Error("EACCES: permission denied"); },
         writeFile: vi.fn(),
         randomId: () => "fixed",
-        tempDir: () => "/tmp",
+        tempDir: () => tmpdir(),
       },
     });
 
@@ -155,13 +160,14 @@ describe("selectBashOriginalOutput", () => {
         readFile: vi.fn(),
         writeFile,
         randomId: () => "fixed-id",
-        tempDir: () => "/tmp/hashline-test",
+        tempDir: () => join(tmpdir(), "hashline-test"),
       },
     });
 
+    const tempBase = join(tmpdir(), "hashline-test");
     expect(result.inputForRtk).toBe("a\nb\nc\nd");
     expect(writeFile).toHaveBeenCalledWith(
-      "/tmp/hashline-test/hashline-bash-original-fixed-id.txt",
+      join(tempBase, "hashline-bash-original-fixed-id.txt"),
       "a\nb\nc\nd",
       { mode: 0o600, flag: "wx" },
     );
@@ -169,8 +175,8 @@ describe("selectBashOriginalOutput", () => {
       source: "pi-visible",
       snapshotNeeded: true,
       snapshotWritten: true,
-      snapshotPath: "/tmp/hashline-test/hashline-bash-original-fixed-id.txt",
-      originalPath: "/tmp/hashline-test/hashline-bash-original-fixed-id.txt",
+      snapshotPath: join(tempBase, "hashline-bash-original-fixed-id.txt"),
+      originalPath: join(tempBase, "hashline-bash-original-fixed-id.txt"),
     });
   });
 
@@ -185,7 +191,7 @@ describe("selectBashOriginalOutput", () => {
         readFile: vi.fn(),
         writeFile,
         randomId: () => "byte-id",
-        tempDir: () => "/tmp/hashline-test",
+        tempDir: () => join(tmpdir(), "hashline-test"),
       },
     });
 
@@ -194,7 +200,7 @@ describe("selectBashOriginalOutput", () => {
       snapshotWritten: true,
       originalByteCount: 6,
       visibleByteCount: 6,
-      snapshotPath: "/tmp/hashline-test/hashline-bash-original-byte-id.txt",
+      snapshotPath: join(tmpdir(), "hashline-test", "hashline-bash-original-byte-id.txt"),
     });
     expect(writeFile).toHaveBeenCalledOnce();
   });
@@ -209,7 +215,7 @@ describe("selectBashOriginalOutput", () => {
         readFile: vi.fn(),
         writeFile: () => { throw new Error("disk full"); },
         randomId: () => "fail-id",
-        tempDir: () => "/tmp/hashline-test",
+        tempDir: () => join(tmpdir(), "hashline-test"),
       },
     });
 
@@ -237,7 +243,7 @@ describe("selectBashOriginalOutput", () => {
         readFile,
         writeFile,
         randomId: () => "disabled-id",
-        tempDir: () => "/tmp/hashline-test",
+        tempDir: () => join(tmpdir(), "hashline-test"),
       },
     });
 
@@ -257,7 +263,7 @@ describe("selectBashOriginalOutput", () => {
         readFile: vi.fn(),
         writeFile,
         randomId: () => "empty-id",
-        tempDir: () => "/tmp/hashline-test",
+        tempDir: () => join(tmpdir(), "hashline-test"),
       },
     });
 
@@ -274,7 +280,7 @@ describe("selectBashOriginalOutput", () => {
         readFile: vi.fn(),
         writeFile: vi.fn(),
         randomId: () => "pre-existing-id",
-        tempDir: () => "/tmp/hashline-test",
+        tempDir: () => join(tmpdir(), "hashline-test"),
       },
     }).metadata;
 
@@ -285,7 +291,7 @@ describe("selectBashOriginalOutput", () => {
         readFile: vi.fn(),
         writeFile: () => { throw new Error("disk full"); },
         randomId: () => "forced-fail-id",
-        tempDir: () => "/tmp/hashline-test",
+        tempDir: () => join(tmpdir(), "hashline-test"),
       },
     });
 
@@ -319,7 +325,7 @@ describe("selectBashOriginalOutput", () => {
         readFile,
         writeFile,
         randomId: () => "unsafe-path-id",
-        tempDir: () => "/tmp/hashline-test",
+        tempDir: () => join(tmpdir(), "hashline-test"),
       },
     });
 
