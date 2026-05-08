@@ -1,4 +1,4 @@
-import { renderDiff, type ExtensionAPI, type EditToolDetails, type ToolRenderResultOptions } from "@mariozechner/pi-coding-agent";
+import { renderDiff, type ExtensionAPI, type EditToolDetails, type ToolRenderResultOptions } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import type { Static } from "@sinclair/typebox";
 import { readFileSync } from "fs";
@@ -11,7 +11,7 @@ import { buildEditOutput } from "./edit-output.js";
 import { classifyEdit, isDifftAvailable, runDifftastic } from "./edit-classify.js";
 import type { SemanticSummary } from "./ptc-value.js";
 import { buildPtcError } from "./ptc-value.js";
-import { Text } from "@mariozechner/pi-tui";
+import { Text } from "@earendil-works/pi-tui";
 import { formatEditCallText, formatEditResultText } from "./edit-render-helpers.js";
 import { validateSyntaxRegression } from "./edit-syntax-validate.js";
 import { resolveSyntaxValidateMode, type SyntaxValidateOptions } from "./syntax-validate-mode.js";
