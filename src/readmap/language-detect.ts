@@ -58,6 +58,11 @@ const EXTENSION_MAP: Record<string, LanguageInfo> = {
   // SQL
   ".sql": { id: "sql", name: "SQL" },
 
+  // Perl
+  ".pl": { id: "perl", name: "Perl" },
+  ".pm": { id: "perl", name: "Perl" },
+  ".plx": { id: "perl", name: "Perl" },
+
   // JSON
   ".json": { id: "json", name: "JSON" },
   ".jsonc": { id: "json", name: "JSON" },

@@ -19,8 +19,8 @@ const modules = [
   "../src/readmap/mappers/shell.js",
   "../src/readmap/mappers/fallback.js",
   "../src/readmap/mappers/ctags.js",
+  "../src/readmap/mappers/perl.js",
 ];
-
 describe("mapper MAPPER_VERSION exports", () => {
   for (const mod of modules) {
     it(`${mod} exports MAPPER_VERSION as a positive integer`, async () => {

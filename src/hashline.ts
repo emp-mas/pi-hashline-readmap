@@ -65,22 +65,47 @@ const CONFUSABLE_HYPHENS_RE = /[\u2010\u2011\u2012\u2013\u2014\u2212\uFE63\uFF0D
 const HASH_RELOCATION_WINDOW_BASE = 20;
 const HASH_RELOCATION_WINDOW_CAP = 100;
 
-let h32Fn: ((input: string, seed?: number) => number) | null = null;
-let initPromise: Promise<void> | null = null;
+// Use globalThis so the hasher is shared across all jiti module instances.
+// Pi loads extensions with jiti (moduleCache: false), which can create
+// separate module instances for the same file. Module-level state would
+// be isolated per-instance, causing "Hash not initialized" errors when
+// ensureHashInit() runs in one instance but xxh32() runs in another.
+
+function getH32Fn(): ((input: string, seed?: number) => number) | null {
+  return (globalThis as any).__hashline_h32Fn ?? null;
+}
+
+function setH32Fn(fn: ((input: string, seed?: number) => number) | null): void {
+  (globalThis as any).__hashline_h32Fn = fn;
+}
+
+function getInitPromise(): Promise<void> | null {
+  return (globalThis as any).__hashline_initPromise ?? null;
+}
+
+function setInitPromise(p: Promise<void> | null): void {
+  (globalThis as any).__hashline_initPromise = p;
+}
 
 export async function ensureHashInit(): Promise<void> {
-	if (h32Fn) return;
-	if (!initPromise) {
-		initPromise = xxhashWasm().then((hasher) => {
-			h32Fn = hasher.h32;
-		});
-	}
-	await initPromise;
+  if (getH32Fn()) return;
+  let promise = getInitPromise();
+  if (!promise) {
+    promise = xxhashWasm().then((hasher) => {
+      if (!hasher?.h32) {
+        throw new Error("xxhash-wasm loaded but h32 function is unavailable — check xxhash-wasm version compatibility");
+      }
+      setH32Fn(hasher.h32);
+    });
+    setInitPromise(promise);
+  }
+  await promise;
 }
 
 function xxh32(input: string): number {
-	if (!h32Fn) throw new Error("Hash not initialized — call ensureHashInit() first");
-	return h32Fn(input, 0) >>> 0;
+  const fn = getH32Fn();
+  if (!fn) throw new Error("Hash not initialized — call ensureHashInit() first");
+  return fn(input, 0) >>> 0;
 }
 
 export function computeLineHash(_idx: number, line: string): string {
