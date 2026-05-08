@@ -1,5 +1,5 @@
-import type { ExtensionAPI, ToolRenderResultOptions } from "@mariozechner/pi-coding-agent";
-import { createGrepTool } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ToolRenderResultOptions } from "@earendil-works/pi-coding-agent";
+import { createGrepTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { readFile as fsReadFile, stat as fsStat } from "fs/promises";
 import path from "path";
@@ -14,7 +14,7 @@ import { getOrGenerateMap } from "./map-cache.js";
 import { scopeGrepGroupsToSymbols } from "./grep-symbol-scope.js";
 import { resolveToCwd } from "./path-utils";
 import { throwIfAborted } from "./runtime";
-import { Text } from "@mariozechner/pi-tui";
+import { Text } from "@earendil-works/pi-tui";
 import { formatGrepCallText, formatGrepResultText } from "./grep-render-helpers.js";
 import { coerceObviousBase10Int } from "./coerce-obvious-int.js";
 

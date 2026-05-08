@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES } from "@mariozechner/pi-coding-agent";
+import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES } from "@earendil-works/pi-coding-agent";
 import { resolveGrepOutputBudget, parsePositiveBase10Int } from "../src/grep-budget.js";
 
 const LINES_DEFAULT = DEFAULT_MAX_LINES; // 2000

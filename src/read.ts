@@ -1,11 +1,11 @@
-import type { ExtensionAPI, ToolRenderResultOptions, AgentToolResult } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ToolRenderResultOptions, AgentToolResult } from "@earendil-works/pi-coding-agent";
 import {
 	createReadTool,
 	truncateHead,
 	formatSize,
 	DEFAULT_MAX_BYTES,
 	DEFAULT_MAX_LINES,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { readFileSync } from "fs";
 import { readFile as fsReadFile } from "fs/promises";
@@ -23,7 +23,7 @@ import { buildReadOutput } from "./read-output.js";
 import { buildReadRehydrateDescriptor } from "./context-hygiene.js";
 import { buildLocalBundle } from "./read-local-bundle.js";
 import { coerceObviousBase10Int } from "./coerce-obvious-int.js";
-import { Text } from "@mariozechner/pi-tui";
+import { Text } from "@earendil-works/pi-tui";
 import { formatReadCallText, formatReadResultText } from "./read-render-helpers.js";
 
 const READ_DESC = readFileSync(new URL("../prompts/read.md", import.meta.url), "utf-8")

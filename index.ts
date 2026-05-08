@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerReadTool } from "./src/read.js";
 import { registerEditTool } from "./src/edit.js";
 import { registerGrepTool } from "./src/grep.js";

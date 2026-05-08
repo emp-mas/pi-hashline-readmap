@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createGrepTool } from "@mariozechner/pi-coding-agent";
+import { createGrepTool } from "@earendil-works/pi-coding-agent";
 import { registerGrepTool } from "../src/grep.js";
 
 function getText(result: any): string {

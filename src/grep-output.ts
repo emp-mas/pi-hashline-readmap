@@ -2,7 +2,7 @@ import type { PtcLine, PtcWarning } from "./ptc-value.js";
 import {
   formatSize,
   truncateHead,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import { resolveGrepOutputBudget } from "./grep-budget.js";
 import {
   buildContextHygieneMetadata,
