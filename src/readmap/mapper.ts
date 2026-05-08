@@ -16,6 +16,7 @@ import { markdownMapper, MAPPER_VERSION as MARKDOWN_VERSION } from "./mappers/ma
 import { pythonMapper, MAPPER_VERSION as PYTHON_VERSION } from "./mappers/python.js";
 import { rustMapper, rustMapperFromContent, MAPPER_VERSION as RUST_VERSION } from "./mappers/rust.js";
 import { shellMapper, MAPPER_VERSION as SHELL_VERSION } from "./mappers/shell.js";
+import { perlMapper, MAPPER_VERSION as PERL_VERSION } from "./mappers/perl.js";
 import { sqlMapper, MAPPER_VERSION as SQL_VERSION } from "./mappers/sql.js";
 import { swiftMapper, MAPPER_VERSION as SWIFT_VERSION } from "./mappers/swift.js";
 import { tomlMapper, MAPPER_VERSION as TOML_VERSION } from "./mappers/toml.js";
@@ -68,6 +69,8 @@ const MAPPERS_V: Record<string, MapperEntry> = {
   swift: { fn: swiftMapper, version: SWIFT_VERSION },
   // Phase 7: Shell/Bash regex mapper
   shell: { fn: shellMapper, version: SHELL_VERSION },
+  // Phase 8: Perl regex mapper
+  perl: { fn: perlMapper, version: PERL_VERSION },
 };
 
 type ContentMapperFn = (

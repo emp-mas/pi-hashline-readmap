@@ -14,7 +14,8 @@ describe("required read-map mapper files (AC11)", () => {
     "rust.ts",
     "json.ts",
     "markdown.ts",
-    "fallback.ts"
+    "fallback.ts",
+    "perl.ts"
   ];
 
   for (const mapper of required) {
