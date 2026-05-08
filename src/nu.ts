@@ -145,10 +145,13 @@ export async function executeNuScript(opts: NuExecuteOptions): Promise<NuExecute
     }
 
     // SIGTERM → 2s grace → SIGKILL escalation to prevent hanging
+    // On Windows, proc.kill() without signal terminates the process tree
+    const killSignal = process.platform === "win32" ? undefined : "SIGKILL";
+    const termSignal = process.platform === "win32" ? undefined : "SIGTERM";
     const forceKill = () => {
       killTimer = setTimeout(() => {
         try {
-          proc.kill("SIGKILL");
+          proc.kill(killSignal);
         } catch {
           // process may already be dead
         }
@@ -157,13 +160,13 @@ export async function executeNuScript(opts: NuExecuteOptions): Promise<NuExecute
 
     const timer = setTimeout(() => {
       timedOut = true;
-      proc.kill("SIGTERM");
+      proc.kill(termSignal);
       forceKill();
     }, timeoutMs);
 
     const abort = () => {
       clearTimeout(timer);
-      proc.kill("SIGTERM");
+      proc.kill(termSignal);
       forceKill();
     };
     signal?.addEventListener("abort", abort, { once: true });

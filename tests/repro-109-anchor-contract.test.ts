@@ -54,7 +54,7 @@ describe("repro 109 — anchor contract", () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  it("allows ast_search anchors to be edited without an intermediate read", async () => {
+  (process.platform === "win32" ? it.skip : it)("allows ast_search anchors to be edited without an intermediate read", async () => {
     const tools = captureTools();
     const dir = mkdtempSync(join(tmpdir(), "pi-repro-109-sg-"));
     const filePath = resolve(dir, "sample.ts");

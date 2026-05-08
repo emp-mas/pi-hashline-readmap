@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyBashContextGuard } from "../src/rtk/bash-context-guard.js";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 describe("applyBashContextGuard trimming", () => {
   it("writes full post-RTK text before replacing line-over-limit output with a recoverable preview", () => {
@@ -24,23 +26,24 @@ describe("applyBashContextGuard trimming", () => {
       config: { enabled: true, maxLines: 5, maxBytes: 1024, headLines: 2, tailLines: 2 },
       fs: {
         randomId: () => "fixed-id",
-        tempDir: () => "/tmp",
+        tempDir: () => tmpdir(),
         writeFile(path, content, options) {
           writes.push({ path, content, options });
         },
       },
     });
 
+    const tempBase = tmpdir();
     expect(writes).toEqual([
       {
-        path: "/tmp/hashline-bash-post-rtk-fixed-id.txt",
+        path: join(tempBase, "hashline-bash-post-rtk-fixed-id.txt"),
         content: text,
         options: { mode: 0o600, flag: "wx" },
       },
     ]);
     expect(result.text).not.toBe(text);
     expect(result.text).toContain("[Bash context guard: preview]");
-    expect(result.text).toContain("Full post-RTK output: /tmp/hashline-bash-post-rtk-fixed-id.txt");
+    expect(result.text).toContain("Full post-RTK output: " + join(tmpdir(), "hashline-bash-post-rtk-fixed-id.txt"));
     expect(result.text).toContain("Original/pre-RTK output: /tmp/original-output.txt");
     expect(result.text).toContain("Original/pre-RTK: 10 lines, 300 bytes");
     expect(result.text).toContain(`Post-RTK: 6 lines, ${Buffer.byteLength(text, "utf8")} bytes`);
@@ -63,7 +66,7 @@ describe("applyBashContextGuard trimming", () => {
       maxBytes: 1024,
       headLines: 2,
       tailLines: 2,
-      postRtkOutputPath: "/tmp/hashline-bash-post-rtk-fixed-id.txt",
+      postRtkOutputPath: join(tmpdir(), "hashline-bash-post-rtk-fixed-id.txt"),
       preservedNoticeCount: 0,
     });
   });
@@ -76,7 +79,7 @@ describe("applyBashContextGuard trimming", () => {
       config: { enabled: true, maxLines: 20, maxBytes: 5, headLines: 1, tailLines: 1 },
       fs: {
         randomId: () => "fixed-id",
-        tempDir: () => "/tmp",
+        tempDir: () => tmpdir(),
         writeFile() {
           throw new Error("disk full");
         },
@@ -109,7 +112,7 @@ describe("applyBashContextGuard trimming", () => {
       config: { enabled: true, maxLines: 20, maxBytes: 5, headLines: 1, tailLines: 1 },
       fs: {
         randomId: () => "long-line-id",
-        tempDir: () => "/tmp",
+        tempDir: () => tmpdir(),
         writeFile(path, content, options) {
           writes.push({ path, content, options });
         },
@@ -118,7 +121,7 @@ describe("applyBashContextGuard trimming", () => {
 
     expect(writes).toEqual([
       {
-        path: "/tmp/hashline-bash-post-rtk-long-line-id.txt",
+        path: join(tmpdir(), "hashline-bash-post-rtk-long-line-id.txt"),
         content: text,
         options: { mode: 0o600, flag: "wx" },
       },

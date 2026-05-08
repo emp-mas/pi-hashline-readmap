@@ -73,8 +73,27 @@ export function extractVisibleFullOutputPath(visibleText: string): string | unde
 }
 
 function isPathInside(parent: string, candidate: string): boolean {
-  const relativePath = relative(parent, candidate);
-  return relativePath === "" || (relativePath !== ".." && !relativePath.startsWith(`..${sep}`) && !isAbsolute(relativePath));
+  const normalizedParent = parent.replace(/\\/g, "/");
+  const normalizedCandidate = candidate.replace(/\\/g, "/");
+  // Detect path style: Windows (has drive letter) or Unix (starts with /)
+  const parentHasDrive = /^[A-Za-z]:\//.test(normalizedParent);
+  const candidateHasDrive = /^[A-Za-z]:\//.test(normalizedCandidate);
+  const parentIsUnixRooted = normalizedParent.startsWith("/") && !parentHasDrive;
+  const candidateIsUnixRooted = normalizedCandidate.startsWith("/") && !candidateHasDrive;
+  // Reject mismatched path styles (e.g., Windows parent vs Unix candidate)
+  if (parentHasDrive !== candidateHasDrive) return false;
+  // For Unix-rooted paths, use simple prefix check (path.relative is unreliable across styles)
+  if (parentIsUnixRooted && candidateIsUnixRooted) {
+    return normalizedCandidate === normalizedParent || normalizedCandidate.startsWith(normalizedParent + "/");
+  }
+  // For Windows paths, use path.relative
+  if (parentHasDrive && candidateHasDrive) {
+    const relativePath = relative(normalizedParent, normalizedCandidate).replace(/\\/g, "/");
+    if (relativePath === "") return true;
+    if (relativePath.startsWith("../") || /^\.\.($|\/)/.test(relativePath)) return false;
+    return true;
+  }
+  return false;
 }
 
 function validateFullOutputPath(fs: BashOriginalOutputFs, value: unknown): string | undefined {

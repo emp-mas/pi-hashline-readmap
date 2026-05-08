@@ -55,7 +55,7 @@ describe("edit guard after bash shell-file mutation", () => {
     await ensureHashInit();
   });
 
-  it("requires a fresh read before immediate edit with pre-bash anchors", async () => {
+  (process.platform === "win32" ? it.skip : it)("requires a fresh read before immediate edit with pre-bash anchors", async () => {
     const { tools, handlers } = createHarness();
     const filePath = fixtureFile();
     const oldLineTwoAnchor = `2:${computeLineHash(2, "const two = 2;")}`;

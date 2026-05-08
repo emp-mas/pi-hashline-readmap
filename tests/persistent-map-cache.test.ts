@@ -42,11 +42,14 @@ describe("resolveCacheDir", () => {
   it("falls through to XDG_CACHE_HOME when override empty", () => {
     process.env.PI_HASHLINE_MAP_CACHE_DIR = "";
     process.env.XDG_CACHE_HOME = "/tmp/xdg";
-    expect(resolveCacheDir()).toBe("/tmp/xdg/pi-hashline-readmap/maps");
+    expect(resolveCacheDir()).toBe(join("/tmp/xdg", "pi-hashline-readmap/maps"));
   });
 
-  it("falls back to ~/.cache when neither env var set", () => {
-    expect(resolveCacheDir()).toBe(join(homedir(), ".cache/pi-hashline-readmap/maps"));
+  it("falls back to platform-appropriate cache directory", () => {
+    const expected = process.platform === "win32"
+      ? join(homedir(), "AppData", "Local", "pi-hashline-readmap", "maps")
+      : join(homedir(), ".cache/pi-hashline-readmap/maps");
+    expect(resolveCacheDir()).toBe(expected);
   });
 });
 

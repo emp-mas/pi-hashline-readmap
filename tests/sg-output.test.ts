@@ -39,7 +39,7 @@ describe("buildSgOutput", () => {
     const spy = vi.spyOn(sgOutputModule, "buildSgOutput");
     const tool = await getSgTool();
     const filePath = resolve(fixturesDir, "small.ts");
-    const displayPath = relative(process.cwd(), filePath);
+    const displayPath = relative(process.cwd(), filePath).replace(/\\/g, "/");
     const sourceLines = readFileSync(filePath, "utf-8").replace(/\r\n/g, "\n").split("\n");
 
     vi.mocked(cp.execFile).mockImplementation((_cmd: any, _args: any, _opts: any, cb: any) => {

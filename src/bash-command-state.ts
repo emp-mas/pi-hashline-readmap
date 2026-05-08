@@ -57,6 +57,11 @@ function normalizeShellTarget(rawTarget: string, cwd: string): string | undefine
   const trimmed = rawTarget.trim();
   if (!trimmed || trimmed === "/dev/null" || /^&\d+$/.test(trimmed)) return undefined;
   if (!isSafeLiteralShellTarget(trimmed)) return undefined;
+  // Preserve forward-slash paths when cwd uses Unix convention (e.g., /tmp/...)
+  // path.win32.isAbsolute() returns true for "/foo" on Windows, so check for drive letter
+  if (cwd.startsWith("/") && !/^[A-Za-z]:/.test(cwd)) {
+    return path.posix.join(cwd, trimmed);
+  }
   return path.resolve(cwd, trimmed);
 }
 

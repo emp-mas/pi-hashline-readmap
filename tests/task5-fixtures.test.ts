@@ -54,7 +54,7 @@ describe("task 5 fixture files", () => {
   });
 
   it("small.py is ~30 lines and includes one class/__init__/method/function", () => {
-    const source = readFileSync(resolve(fixturesDir, "small.py"), "utf8");
+    const source = readFileSync(resolve(fixturesDir, "small.py"), "utf8").replace(/\r\n/g, "\n");
     const lines = source.trimEnd().split("\n");
     expect(lines.length).toBeGreaterThanOrEqual(28);
     expect(lines.length).toBeLessThanOrEqual(40);

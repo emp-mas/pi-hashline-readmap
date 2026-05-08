@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyBashContextGuard } from "../src/rtk/bash-context-guard.js";
+import { tmpdir } from "node:os";
 
 function occurrences(haystack: string, needle: string): number {
   return haystack.split(needle).length - 1;
@@ -29,7 +30,7 @@ describe("guarded Bash preview protected notices", () => {
       config: { enabled: true, maxLines: 4, maxBytes: 4096, headLines: 1, tailLines: 1 },
       fs: {
         randomId: () => "notice-id",
-        tempDir: () => "/tmp",
+        tempDir: () => tmpdir(),
         writeFile() {},
       },
     });
@@ -54,7 +55,7 @@ describe("guarded Bash preview protected notices", () => {
       config: { enabled: true, maxLines: 3, maxBytes: 4096, headLines: 1, tailLines: 1 },
       fs: {
         randomId: () => "doom-id",
-        tempDir: () => "/tmp",
+        tempDir: () => tmpdir(),
         writeFile() {},
       },
     });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { join } from "node:path";
 import init from "../index.js";
 import { buildBashCommandState } from "../src/bash-command-state.js";
 import {
@@ -215,7 +216,7 @@ describe("bash contextHygiene metadata", () => {
 
   it("records shell redirection file targets so prior reads can become stale", async () => {
     const handlers = createHarness();
-    const targetPath = `${process.cwd()}/tmp/context-hygiene-bash-shell-target.txt`;
+    const targetPath = join(process.cwd(), "tmp", "context-hygiene-bash-shell-target.txt");
     const fileResource = buildFileResource(targetPath);
 
     await handlers.tool_result(
