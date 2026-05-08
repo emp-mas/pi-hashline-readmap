@@ -11,7 +11,7 @@ import type { FileMap, FileSymbol } from "../types.js";
 
 import { DetailLevel, SymbolKind } from "../enums.js";
 
-export const MAPPER_VERSION = 1;
+export const MAPPER_VERSION = 2;
 
 // package My::Module;
 const PACKAGE_RE = /^\s*package\s+([\w::]+)\s*;\s*$/;
@@ -40,10 +40,61 @@ const POD_END_RE = /^\s*=cut\s*$/;
 // __END__ or __DATA__ — stop parsing entirely
 const END_MARKER_RE = /^\s*__(END|DATA)__/;
 
-function countChar(s: string, ch: string): number {
-  let n = 0;
-  for (const c of s) if (c === ch) n++;
-  return n;
+/**
+ * Count braces on a line, skipping braces inside quoted strings
+ * and simple /.../ regex literals.
+ */
+function countBraces(line: string): { open: number; close: number } {
+  let open = 0;
+  let close = 0;
+  let inString = false;
+  let stringDelim = "";
+  let escapeNext = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+
+    if (ch === "\\") {
+      escapeNext = true;
+      continue;
+    }
+
+    if (inString) {
+      if (ch === stringDelim) {
+        inString = false;
+        stringDelim = "";
+      }
+      continue;
+    }
+
+    if (ch === "'" || ch === '"' || ch === "`") {
+      inString = true;
+      stringDelim = ch;
+      continue;
+    }
+
+    // Heuristic for /regex/ — treat / as regex start when not preceded by
+    // word char, digit, ), ], $, @, or _. This catches /foo/ but avoids
+    // division operators like $a / $b reasonably well.
+    if (ch === "/") {
+      const prev = line[i - 1];
+      if (!prev || !/[\w)\]$@_]/.test(prev)) {
+        inString = true;
+        stringDelim = "/";
+        continue;
+      }
+    }
+
+    if (ch === "{") open++;
+    if (ch === "}") close++;
+  }
+
+  return { open, close };
 }
 
 /** Perl keywords that look like sub names but aren't */
@@ -142,10 +193,12 @@ export async function perlMapper(
           signature: name,
         };
 
-        const openBraces = countChar(line, "{");
-        const closeBraces = countChar(line, "}");
+        const { open: openBraces, close: closeBraces } = countBraces(line);
 
         if (openBraces > closeBraces) {
+          declStack.push({ symbol: sym, startDepth: braceDepth });
+        } else if (openBraces === 0 && closeBraces === 0) {
+          // Declaration with brace on a following line (Allman style)
           declStack.push({ symbol: sym, startDepth: braceDepth });
         } else {
           sym.endLine = lineNum;
@@ -173,10 +226,12 @@ export async function perlMapper(
             signature: sig,
           };
 
-          const openBraces = countChar(line, "{");
-          const closeBraces = countChar(line, "}");
+          const { open: openBraces, close: closeBraces } = countBraces(line);
 
           if (openBraces > closeBraces) {
+            declStack.push({ symbol: sym, startDepth: braceDepth });
+          } else if (openBraces === 0 && closeBraces === 0) {
+            // Declaration with brace on a following line (Allman style)
             declStack.push({ symbol: sym, startDepth: braceDepth });
           } else {
             sym.endLine = lineNum;
@@ -224,8 +279,7 @@ export async function perlMapper(
       }
 
       // Track braces for non-declaration lines
-      const openBraces = countChar(line, "{");
-      const closeBraces = countChar(line, "}");
+      const { open: openBraces, close: closeBraces } = countBraces(line);
       braceDepth += openBraces - closeBraces;
 
       // Pop closed declarations

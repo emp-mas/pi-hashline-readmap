@@ -108,4 +108,90 @@ describe("Perl readmap mapper", () => {
     expect(processSub!.signature).toContain("$self");
     expect(processSub!.signature).toContain("$file");
   });
+
+  it("tracks Allman-style sub with brace on next line", async () => {
+    const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const dir = mkdtempSync(join(tmpdir(), "pi-perl-allman-"));
+    const filePath = join(dir, "allman.pl");
+    writeFileSync(
+      filePath,
+      [
+        "package AllmanTest;",
+        "",
+        "sub allman_sub",
+        "{",
+        "    my $x = 1;",
+        "    return $x;",
+        "}",
+        "",
+        "BEGIN",
+        "{",
+        '    print "start\\n";',
+        "}",
+        "",
+        "1;",
+      ].join("\n"),
+      "utf8",
+    );
+    try {
+      const map = await generateMap(filePath);
+      const sub = map!.symbols.find(s => s.name === "allman_sub");
+      expect(sub).toBeDefined();
+      expect(sub!.startLine).toBe(3);
+      expect(sub!.endLine).toBe(7);
+
+      const begin = map!.symbols.find(s => s.name === "BEGIN");
+      expect(begin).toBeDefined();
+      expect(begin!.startLine).toBe(9);
+      expect(begin!.endLine).toBe(12);
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  });
+
+  it("ignores braces inside strings and regexes", async () => {
+    const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const dir = mkdtempSync(join(tmpdir(), "pi-perl-braces-"));
+    const filePath = join(dir, "braces.pl");
+    writeFileSync(
+      filePath,
+      [
+        "package BraceTest;",
+        "",
+        "sub string_braces {",
+        '    my $tpl = "hello {world}";',
+        "    my $str = 'foo {bar}';",
+        "    my $cmd = `echo {test}`;",
+        "    my $re = /foo \\{/;",
+        "    return 1;",
+        "}",
+        "",
+        "sub regex_braces {",
+        "    my $re = /foo {/;",
+        "    return 1;",
+        "}",
+        "",
+        "1;",
+      ].join("\n"),
+      "utf8",
+    );
+    try {
+      const map = await generateMap(filePath);
+      const sub1 = map!.symbols.find(s => s.name === "string_braces");
+      expect(sub1).toBeDefined();
+      expect(sub1!.startLine).toBe(3);
+      expect(sub1!.endLine).toBe(9);
+
+      const sub2 = map!.symbols.find(s => s.name === "regex_braces");
+      expect(sub2).toBeDefined();
+      expect(sub2!.startLine).toBe(11);
+      expect(sub2!.endLine).toBe(14);
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  });
 });
